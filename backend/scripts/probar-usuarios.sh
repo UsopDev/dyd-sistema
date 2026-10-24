@@ -14,7 +14,7 @@ R=$(curl -s -c $ADMIN -X POST $URL/api/auth/login -H "$JSON" \
 ID_ADMIN=$(echo "$R" | id_de)
 echo "$R" | grep -o '"rol":"[A-Z]*"'
 
-echo "--- 2. Crear técnico (esperado: 201 y rol TECNICO)"
+echo "--- 2. Crear técnico (esperado: 201)"
 R=$(curl -s -w "\n%{http_code}" -b $ADMIN -X POST $URL/api/usuarios -H "$JSON" \
   -d "{\"nombres\":\"Luis\",\"apellidos\":\"Mamani\",\"email\":\"$CORREO\",\"password\":\"Tecnico2026\",\"rol\":\"TECNICO\"}")
 echo "$R" | tail -n1
