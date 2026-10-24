@@ -96,7 +96,7 @@ for i in 1 2 3 4 5; do
     -d "{\"id_solicitud\":\"$S3\",\"detalles\":[{\"tipo\":\"SERVICIO\",\"descripcion\":\"Trabajo $i\",\"cantidad\":1,\"precio_unitario\":100}]}" > $TMP/$i.txt &
 done
 wait
-cat $TMP/*.txt | tail -qn1 | sort | uniq -c
+for f in $TMP/*.txt; do tail -n1 "$f"; echo; done | grep -v '^$' | sort | uniq -c
 cat $TMP/*.txt | grep -o '"codigo":"COT-[0-9-]*"' | sort | uniq | wc -l
 rm -rf $TMP
 
