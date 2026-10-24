@@ -11,6 +11,7 @@ import { materialesRouter } from "./modules/materiales/materiales.routes.js";
 import { solicitudesRouter } from "./modules/solicitudes/solicitudes.routes.js";
 import { diagnosticosRouter } from "./modules/diagnosticos/diagnosticos.routes.js";
 import { cotizacionesRouter } from "./modules/cotizaciones/cotizaciones.routes.js";
+import { ordenesRouter } from "./modules/ordenes/ordenes.routes.js";
 import { requireAuth, requireRol } from "./middleware/auth.js";
 
 export const app = express();
@@ -37,6 +38,7 @@ app.use("/api/materiales", requireAuth, materialesRouter);
 app.use("/api/solicitudes", requireAuth, solicitudesRouter);
 app.use("/api/diagnosticos", requireAuth, diagnosticosRouter);
 app.use("/api/cotizaciones", requireAuth, requireRol("ADMINISTRADOR"), cotizacionesRouter);
+app.use("/api/ordenes", requireAuth, ordenesRouter);
 
 app.use((_req, res) => {
   res.status(404).json({ error: "Ruta no encontrada" });
