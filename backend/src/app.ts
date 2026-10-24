@@ -1,6 +1,7 @@
 import express from "express";
 import helmet from "helmet";
 import cors from "cors";
+import { prisma } from "./lib/prisma.js";
 
 export const app = express();
 
@@ -10,6 +11,11 @@ app.use(express.json());
 
 app.get("/api/health", (_req, res) => {
   res.json({ status: "ok", timestamp: new Date().toISOString() });
+});
+
+app.get("/api/health/db", async (_req, res) => {
+  await prisma.$queryRaw`SELECT 1`;
+  res.json({ status: "ok", database: "conectada" });
 });
 
 app.use((_req, res) => {
