@@ -5,6 +5,8 @@ const schema = z.object({
   PORT: z.coerce.number().int().positive().default(3000),
   DATABASE_URL: z.string().min(1),
   REDIS_URL: z.string().min(1),
+  JWT_ACCESS_SECRET: z.string().min(32),
+  JWT_ACCESS_MINUTES: z.coerce.number().int().positive().default(15),
 });
 
 const result = schema.safeParse(process.env);

@@ -11,7 +11,8 @@
     "db:generate": "node --env-file=.env node_modules/prisma/build/index.js generate",
     "db:migrate": "node --env-file=.env node_modules/prisma/build/index.js migrate dev",
     "db:studio": "node --env-file=.env node_modules/prisma/build/index.js studio",
-    "db:validate": "node --env-file=.env node_modules/prisma/build/index.js validate"
+    "db:validate": "node --env-file=.env node_modules/prisma/build/index.js validate",
+    "db:seed": "tsx --env-file=.env prisma/seed.ts"
   },
   "keywords": [],
   "type": "module",
@@ -19,15 +20,21 @@
   "dependencies": {
     "@prisma/adapter-pg": "^7.10.1",
     "@prisma/client": "^7.10.1",
+    "bcrypt": "^6.0.0",
+    "cookie-parser": "^1.4.7",
     "cors": "^2.8.6",
     "express": "^5.3.0",
     "helmet": "^8.3.0",
+    "jsonwebtoken": "^9.0.3",
     "pg": "^8.23.1",
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@types/bcrypt": "^6.0.0",
+    "@types/cookie-parser": "^1.4.10",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
+    "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^24.19.2",
     "@types/pg": "^8.23.1",
     "prisma": "^7.10.1",
@@ -36,6 +43,7 @@
   },
   "allowScripts": {
     "prisma@7.10.1": true,
-    "@prisma/engines@7.10.1": true
+    "@prisma/engines@7.10.1": true,
+    "bcrypt@6.0.0": true
   }
 }
