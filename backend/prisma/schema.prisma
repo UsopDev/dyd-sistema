@@ -7,23 +7,378 @@ datasource db {
   provider = "postgresql"
 }
 
-model Rol {
-  id       Int       @id @default(autoincrement())
-  nombre   String    @unique
-  usuarios Usuario[]
+enum RolUsuario {
+  ADMINISTRADOR
+  TECNICO
 
-  @@map("roles")
+  @@map("rol_usuario")
+}
+
+enum EstadoMaquina {
+  OPERATIVA
+  EN_MANTENIMIENTO
+  FUERA_DE_SERVICIO
+
+  @@map("estado_maquina")
+}
+
+enum TipoServicio {
+  PREVENTIVO
+  CORRECTIVO
+
+  @@map("tipo_servicio")
+}
+
+enum Prioridad {
+  ALTA
+  MEDIA
+  BAJA
+
+  @@map("prioridad")
+}
+
+enum EstadoSolicitud {
+  RECIBIDA
+  EN_DIAGNOSTICO
+  COTIZADA
+  ASIGNADA
+  EN_PROCESO
+  FINALIZADA
+  CANCELADA
+
+  @@map("estado_solicitud")
+}
+
+enum EstadoGeneral {
+  BUENO
+  REGULAR
+  MALO
+  CRITICO
+
+  @@map("estado_general")
+}
+
+enum EstadoOrden {
+  PENDIENTE
+  EN_PROCESO
+  FINALIZADA
+  CANCELADA
+
+  @@map("estado_orden")
+}
+
+enum TipoMovimiento {
+  ENTRADA
+  SALIDA
+
+  @@map("tipo_movimiento")
+}
+
+enum TipoItem {
+  SERVICIO
+  MATERIAL
+
+  @@map("tipo_item")
 }
 
 model Usuario {
-  id           Int      @id @default(autoincrement())
-  nombre       String
-  email        String   @unique
-  passwordHash String   @map("password_hash")
-  activo       Boolean  @default(true)
-  creadoEn     DateTime @default(now()) @map("creado_en")
-  rolId        Int      @map("rol_id")
-  rol          Rol      @relation(fields: [rolId], references: [id])
+  id_usuario     String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  nombres        String     @db.VarChar(80)
+  apellidos      String     @db.VarChar(80)
+  email          String     @unique @db.VarChar(120)
+  password_hash  String     @db.VarChar(255)
+  rol            RolUsuario
+  activo         Boolean    @default(true)
+  creado_en      DateTime   @default(now())
+  actualizado_en DateTime   @default(now()) @updatedAt
+
+  tokens_refresco TokenRefresco[]
+  registros_uso   RegistroUso[]
+  solicitudes     Solicitud[]
+  diagnosticos    Diagnostico[]
+  cotizaciones    Cotizacion[]
+  ordenes_trabajo OrdenTrabajo[]
+  adjuntos        Adjunto[]
+  movimientos     MovimientoInventario[]
 
   @@map("usuarios")
+}
+
+model TokenRefresco {
+  id_token   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_usuario String   @db.Uuid
+  token_hash String   @db.VarChar(255)
+  expira_en  DateTime
+  revocado   Boolean  @default(false)
+  creado_en  DateTime @default(now())
+
+  usuario Usuario @relation(fields: [id_usuario], references: [id_usuario])
+
+  @@map("tokens_refresco")
+}
+
+model Cliente {
+  id_cliente     String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  razon_social   String   @db.VarChar(150)
+  ruc_dni        String?  @unique @db.VarChar(15)
+  contacto       String?  @db.VarChar(100)
+  telefono       String?  @db.VarChar(20)
+  email          String?  @db.VarChar(120)
+  direccion      String?  @db.VarChar(200)
+  activo         Boolean  @default(true)
+  creado_en      DateTime @default(now())
+  actualizado_en DateTime @default(now()) @updatedAt
+
+  maquinas    Maquina[]
+  solicitudes Solicitud[]
+
+  @@map("clientes")
+}
+
+model Maquina {
+  id_maquina     String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_cliente     String?       @db.Uuid
+  codigo         String?       @unique @db.VarChar(30)
+  nombre         String        @db.VarChar(100)
+  tipo           String?       @db.VarChar(50)
+  marca          String?       @db.VarChar(50)
+  modelo         String?       @db.VarChar(50)
+  nro_serie      String?       @db.VarChar(50)
+  es_propia      Boolean       @default(false)
+  horas_uso      Decimal       @default(0) @db.Decimal(10, 1)
+  estado         EstadoMaquina @default(OPERATIVA)
+  creado_en      DateTime      @default(now())
+  actualizado_en DateTime      @default(now()) @updatedAt
+
+  cliente        Cliente?                 @relation(fields: [id_cliente], references: [id_cliente])
+  programaciones ProgramacionPreventiva[]
+  registros_uso  RegistroUso[]
+  solicitudes    Solicitud[]
+  diagnosticos   Diagnostico[]
+
+  @@index([id_cliente])
+  @@map("maquinas")
+}
+
+model ProgramacionPreventiva {
+  id_programacion   String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_maquina        String    @db.Uuid
+  descripcion       String    @db.VarChar(200)
+  frecuencia_horas  Int?
+  frecuencia_dias   Int?
+  dias_aviso        Int       @default(7)
+  horas_aviso       Decimal   @default(10) @db.Decimal(6, 1)
+  horas_ultimo_mant Decimal?  @db.Decimal(10, 1)
+  fecha_ultimo_mant DateTime? @db.Date
+  proximo_mant      DateTime? @db.Date
+  activo            Boolean   @default(true)
+  creado_en         DateTime  @default(now())
+  actualizado_en    DateTime  @default(now()) @updatedAt
+
+  maquina     Maquina            @relation(fields: [id_maquina], references: [id_maquina])
+  alertas     AlertaPreventiva[]
+  solicitudes Solicitud[]
+
+  @@index([proximo_mant])
+  @@map("programaciones_preventivas")
+}
+
+model AlertaPreventiva {
+  id_alerta       String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_programacion String   @db.Uuid
+  proximo_mant    DateTime @db.Date
+  enviada_en      DateTime @default(now())
+
+  programacion ProgramacionPreventiva @relation(fields: [id_programacion], references: [id_programacion])
+
+  @@unique([id_programacion, proximo_mant])
+  @@map("alertas_preventivas")
+}
+
+model RegistroUso {
+  id_registro_uso       String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_maquina            String   @db.Uuid
+  id_usuario_registrado String   @db.Uuid
+  horas                 Decimal  @db.Decimal(6, 1)
+  fecha                 DateTime @db.Date
+  creado_en             DateTime @default(now())
+
+  maquina Maquina @relation(fields: [id_maquina], references: [id_maquina])
+  usuario Usuario @relation(fields: [id_usuario_registrado], references: [id_usuario])
+
+  @@index([id_maquina, fecha])
+  @@map("registros_uso")
+}
+
+model Solicitud {
+  id_solicitud          String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  codigo                String?         @unique @db.VarChar(20)
+  id_cliente            String?         @db.Uuid
+  id_maquina            String          @db.Uuid
+  id_usuario_registrado String          @db.Uuid
+  id_programacion       String?         @db.Uuid
+  tipo_servicio         TipoServicio
+  descripcion           String
+  prioridad             Prioridad       @default(MEDIA)
+  estado                EstadoSolicitud @default(RECIBIDA)
+  fecha_recepcion       DateTime        @default(now())
+  actualizado_en        DateTime        @default(now()) @updatedAt
+
+  cliente       Cliente?                @relation(fields: [id_cliente], references: [id_cliente])
+  maquina       Maquina                 @relation(fields: [id_maquina], references: [id_maquina])
+  usuario       Usuario                 @relation(fields: [id_usuario_registrado], references: [id_usuario])
+  programacion  ProgramacionPreventiva? @relation(fields: [id_programacion], references: [id_programacion])
+  diagnostico   Diagnostico?
+  cotizaciones  Cotizacion[]
+  orden_trabajo OrdenTrabajo?
+
+  @@index([estado, prioridad])
+  @@index([id_maquina])
+  @@map("solicitudes")
+}
+
+model Diagnostico {
+  id_diagnostico    String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_solicitud      String        @unique @db.Uuid
+  id_maquina        String        @db.Uuid
+  id_tecnico        String        @db.Uuid
+  estado_general    EstadoGeneral
+  fallas_detectadas String
+  observaciones     String?
+  recomendaciones   String?
+  fecha             DateTime      @default(now())
+  actualizado_en    DateTime      @default(now()) @updatedAt
+
+  solicitud     Solicitud     @relation(fields: [id_solicitud], references: [id_solicitud])
+  maquina       Maquina       @relation(fields: [id_maquina], references: [id_maquina])
+  tecnico       Usuario       @relation(fields: [id_tecnico], references: [id_usuario])
+  orden_trabajo OrdenTrabajo?
+  adjuntos      Adjunto[]
+
+  @@map("diagnosticos")
+}
+
+model Cotizacion {
+  id_cotizacion  String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  codigo         String?  @unique @db.VarChar(20)
+  id_solicitud   String   @db.Uuid
+  id_usuario     String   @db.Uuid
+  total          Decimal  @default(0) @db.Decimal(10, 2)
+  observaciones  String?
+  fecha          DateTime @default(now())
+  actualizado_en DateTime @default(now()) @updatedAt
+
+  solicitud Solicitud           @relation(fields: [id_solicitud], references: [id_solicitud])
+  usuario   Usuario             @relation(fields: [id_usuario], references: [id_usuario])
+  detalles  CotizacionDetalle[]
+
+  @@map("cotizaciones")
+}
+
+model CotizacionDetalle {
+  id_detalle      String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_cotizacion   String   @db.Uuid
+  tipo            TipoItem
+  descripcion     String   @db.VarChar(200)
+  id_material     String?  @db.Uuid
+  cantidad        Decimal  @db.Decimal(10, 2)
+  precio_unitario Decimal  @db.Decimal(10, 2)
+
+  cotizacion Cotizacion @relation(fields: [id_cotizacion], references: [id_cotizacion])
+  material   Material?  @relation(fields: [id_material], references: [id_material])
+
+  @@map("cotizacion_detalle")
+}
+
+model OrdenTrabajo {
+  id_orden_trabajo  String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  codigo            String?     @unique @db.VarChar(20)
+  id_solicitud      String      @unique @db.Uuid
+  id_diagnostico    String      @unique @db.Uuid
+  id_tecnico        String      @db.Uuid
+  estado            EstadoOrden @default(PENDIENTE)
+  trabajo_realizado String?
+  monto             Decimal?    @db.Decimal(10, 2)
+  fecha_inicio      DateTime?
+  fecha_fin         DateTime?
+  creado_en         DateTime    @default(now())
+  actualizado_en    DateTime    @default(now()) @updatedAt
+
+  solicitud   Solicitud              @relation(fields: [id_solicitud], references: [id_solicitud])
+  diagnostico Diagnostico            @relation(fields: [id_diagnostico], references: [id_diagnostico])
+  tecnico     Usuario                @relation(fields: [id_tecnico], references: [id_usuario])
+  adjuntos    Adjunto[]
+  materiales  OrdenMaterial[]
+  movimientos MovimientoInventario[]
+
+  @@map("ordenes_trabajo")
+}
+
+model Adjunto {
+  id_adjunto           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_diagnostico       String?  @db.Uuid
+  id_orden_trabajo     String?  @db.Uuid
+  nombre_original      String   @db.VarChar(150)
+  clave_almacenamiento String   @db.VarChar(255)
+  tipo_mime            String?  @db.VarChar(100)
+  tamano_bytes         Int?
+  id_usuario_subio     String   @db.Uuid
+  subido_en            DateTime @default(now())
+
+  diagnostico   Diagnostico?  @relation(fields: [id_diagnostico], references: [id_diagnostico])
+  orden_trabajo OrdenTrabajo? @relation(fields: [id_orden_trabajo], references: [id_orden_trabajo])
+  usuario       Usuario       @relation(fields: [id_usuario_subio], references: [id_usuario])
+
+  @@map("adjuntos")
+}
+
+model Material {
+  id_material     String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  codigo          String?  @unique @db.VarChar(30)
+  nombre          String   @db.VarChar(100)
+  unidad          String   @db.VarChar(20)
+  stock_actual    Decimal  @default(0) @db.Decimal(10, 2)
+  stock_minimo    Decimal  @default(0) @db.Decimal(10, 2)
+  precio_unitario Decimal? @db.Decimal(10, 2)
+  activo          Boolean  @default(true)
+  creado_en       DateTime @default(now())
+  actualizado_en  DateTime @default(now()) @updatedAt
+
+  detalles_cotizacion CotizacionDetalle[]
+  orden_materiales    OrdenMaterial[]
+  movimientos         MovimientoInventario[]
+
+  @@map("materiales")
+}
+
+model OrdenMaterial {
+  id_orden_material String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_orden_trabajo  String   @db.Uuid
+  id_material       String   @db.Uuid
+  cantidad          Decimal  @db.Decimal(10, 2)
+  precio_unitario   Decimal? @db.Decimal(10, 2)
+
+  orden_trabajo OrdenTrabajo @relation(fields: [id_orden_trabajo], references: [id_orden_trabajo])
+  material      Material     @relation(fields: [id_material], references: [id_material])
+
+  @@unique([id_orden_trabajo, id_material])
+  @@map("orden_materiales")
+}
+
+model MovimientoInventario {
+  id_movimiento    String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_material      String         @db.Uuid
+  id_usuario       String         @db.Uuid
+  id_orden_trabajo String?        @db.Uuid
+  tipo             TipoMovimiento
+  cantidad         Decimal        @db.Decimal(10, 2)
+  motivo           String?        @db.VarChar(150)
+  fecha            DateTime       @default(now())
+
+  material      Material      @relation(fields: [id_material], references: [id_material])
+  usuario       Usuario       @relation(fields: [id_usuario], references: [id_usuario])
+  orden_trabajo OrdenTrabajo? @relation(fields: [id_orden_trabajo], references: [id_orden_trabajo])
+
+  @@index([id_material, fecha])
+  @@map("movimientos_inventario")
 }
