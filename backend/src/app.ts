@@ -5,6 +5,7 @@ import cookieParser from "cookie-parser";
 import { prisma } from "./lib/prisma.js";
 import { authRouter } from "./modules/auth/auth.routes.js";
 import { usuariosRouter } from "./modules/usuarios/usuarios.routes.js";
+import { clientesRouter } from "./modules/clientes/clientes.routes.js";
 import { requireAuth, requireRol } from "./middleware/auth.js";
 
 export const app = express();
@@ -25,6 +26,7 @@ app.get("/api/health/db", async (_req, res) => {
 
 app.use("/api/auth", authRouter);
 app.use("/api/usuarios", requireAuth, requireRol("ADMINISTRADOR"), usuariosRouter);
+app.use("/api/clientes", requireAuth, clientesRouter);
 
 app.use((_req, res) => {
   res.status(404).json({ error: "Ruta no encontrada" });
