@@ -1,12 +1,23 @@
 import { Router } from "express";
+import type { Response } from "express";
+import { rateLimit } from "express-rate-limit";
 import { z } from "zod";
 import { prisma } from "../../lib/prisma.js";
 import { HASH_FALSO, verifyPassword } from "../../lib/passwords.js";
-import { COOKIE_ACCESO, firmarAccessToken, type SesionUsuario } from "../../lib/jwt.js";
+import { COOKIE_ACCESO, firmarAccessToken, type Rol, type SesionUsuario } from "../../lib/jwt.js";
+import {
+  DIAS_REFRESH,
+  consumirRefreshToken,
+  crearRefreshToken,
+  revocarRefreshToken,
+} from "../../lib/refresh-tokens.js";
 import { requireAuth } from "../../middleware/auth.js";
 import { env } from "../../config/env.js";
 
 export const authRouter = Router();
+
+const COOKIE_REFRESCO = "refresh_token";
+const RUTA_REFRESCO = "/api/auth";
 
 const loginSchema = z.object({
   email: z.email().max(120),
@@ -20,7 +31,55 @@ const opcionesCookie = {
   path: "/",
 };
 
-authRouter.post("/login", async (req, res) => {
+// Solo cuentan los intentos fallidos: un login correcto no consume el límite.
+const limitadorLogin = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 10,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  skipSuccessfulRequests: true,
+  message: { error: "Demasiados intentos fallidos. Intenta de nuevo en unos minutos." },
+});
+
+interface UsuarioSesion {
+  id_usuario: string;
+  nombres: string;
+  apellidos: string;
+  email: string;
+  rol: Rol;
+}
+
+function datosUsuario(usuario: UsuarioSesion) {
+  return {
+    id_usuario: usuario.id_usuario,
+    nombres: usuario.nombres,
+    apellidos: usuario.apellidos,
+    email: usuario.email,
+    rol: usuario.rol,
+  };
+}
+
+async function iniciarSesion(res: Response, usuario: UsuarioSesion): Promise<void> {
+  const accessToken = firmarAccessToken({ id: usuario.id_usuario, rol: usuario.rol });
+  const refreshToken = await crearRefreshToken(usuario.id_usuario);
+
+  res.cookie(COOKIE_ACCESO, accessToken, {
+    ...opcionesCookie,
+    maxAge: env.JWT_ACCESS_MINUTES * 60 * 1000,
+  });
+  res.cookie(COOKIE_REFRESCO, refreshToken, {
+    ...opcionesCookie,
+    path: RUTA_REFRESCO,
+    maxAge: DIAS_REFRESH * 24 * 60 * 60 * 1000,
+  });
+}
+
+function limpiarCookies(res: Response): void {
+  res.clearCookie(COOKIE_ACCESO, opcionesCookie);
+  res.clearCookie(COOKIE_REFRESCO, { ...opcionesCookie, path: RUTA_REFRESCO });
+}
+
+authRouter.post("/login", limitadorLogin, async (req, res) => {
   const datos = loginSchema.safeParse(req.body);
 
   if (!datos.success) {
@@ -41,21 +100,30 @@ authRouter.post("/login", async (req, res) => {
     return;
   }
 
-  const token = firmarAccessToken({ id: usuario.id_usuario, rol: usuario.rol });
-  res.cookie(COOKIE_ACCESO, token, {
-    ...opcionesCookie,
-    maxAge: env.JWT_ACCESS_MINUTES * 60 * 1000,
-  });
+  await iniciarSesion(res, usuario);
+  res.json({ usuario: datosUsuario(usuario) });
+});
 
-  res.json({
-    usuario: {
-      id_usuario: usuario.id_usuario,
-      nombres: usuario.nombres,
-      apellidos: usuario.apellidos,
-      email: usuario.email,
-      rol: usuario.rol,
-    },
-  });
+authRouter.post("/refresh", async (req, res) => {
+  const token: string | undefined = req.cookies?.[COOKIE_REFRESCO];
+  const idUsuario = token ? await consumirRefreshToken(token) : null;
+
+  if (!idUsuario) {
+    limpiarCookies(res);
+    res.status(401).json({ error: "Sesión expirada" });
+    return;
+  }
+
+  const usuario = await prisma.usuario.findUnique({ where: { id_usuario: idUsuario } });
+
+  if (!usuario || !usuario.activo) {
+    limpiarCookies(res);
+    res.status(401).json({ error: "Sesión expirada" });
+    return;
+  }
+
+  await iniciarSesion(res, usuario);
+  res.json({ usuario: datosUsuario(usuario) });
 });
 
 authRouter.get("/me", requireAuth, async (_req, res) => {
@@ -67,18 +135,16 @@ authRouter.get("/me", requireAuth, async (_req, res) => {
     return;
   }
 
-  res.json({
-    usuario: {
-      id_usuario: usuario.id_usuario,
-      nombres: usuario.nombres,
-      apellidos: usuario.apellidos,
-      email: usuario.email,
-      rol: usuario.rol,
-    },
-  });
+  res.json({ usuario: datosUsuario(usuario) });
 });
 
-authRouter.post("/logout", (_req, res) => {
-  res.clearCookie(COOKIE_ACCESO, opcionesCookie);
+authRouter.post("/logout", async (req, res) => {
+  const token: string | undefined = req.cookies?.[COOKIE_REFRESCO];
+
+  if (token) {
+    await revocarRefreshToken(token);
+  }
+
+  limpiarCookies(res);
   res.status(204).end();
 });
