@@ -12,6 +12,8 @@ import { solicitudesRouter } from "./modules/solicitudes/solicitudes.routes.js";
 import { diagnosticosRouter } from "./modules/diagnosticos/diagnosticos.routes.js";
 import { cotizacionesRouter } from "./modules/cotizaciones/cotizaciones.routes.js";
 import { ordenesRouter } from "./modules/ordenes/ordenes.routes.js";
+import { usoRouter } from "./modules/uso/uso.routes.js";
+import { preventivosRouter } from "./modules/preventivos/preventivos.routes.js";
 import { requireAuth, requireRol } from "./middleware/auth.js";
 
 export const app = express();
@@ -39,6 +41,8 @@ app.use("/api/solicitudes", requireAuth, solicitudesRouter);
 app.use("/api/diagnosticos", requireAuth, diagnosticosRouter);
 app.use("/api/cotizaciones", requireAuth, requireRol("ADMINISTRADOR"), cotizacionesRouter);
 app.use("/api/ordenes", requireAuth, ordenesRouter);
+app.use("/api/uso", requireAuth, usoRouter);
+app.use("/api/preventivos", requireAuth, preventivosRouter);
 
 app.use((_req, res) => {
   res.status(404).json({ error: "Ruta no encontrada" });

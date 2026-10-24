@@ -4,6 +4,7 @@ import { z } from "zod";
 import { prisma } from "../../lib/prisma.js";
 import { validar } from "../../lib/validar.js";
 import { siguienteCodigo } from "../../lib/codigos.js";
+import { aFecha, hoyLocal, sumarDias } from "../../lib/fechas.js";
 import { requireRol } from "../../middleware/auth.js";
 import type { SesionUsuario } from "../../lib/jwt.js";
 
@@ -378,6 +379,34 @@ ordenesRouter.post("/:id/finalizar", async (req, res) => {
       where: { id_solicitud: orden.id_solicitud, estado: "EN_PROCESO" },
       data: { estado: "FINALIZADA" },
     });
+
+    // Si la solicitud era de un mantenimiento programado, la programación vuelve a empezar:
+    // nueva fecha base, horas base actuales de la máquina y nueva fecha del próximo mantenimiento.
+    const origen = await tx.solicitud.findUnique({
+      where: { id_solicitud: orden.id_solicitud },
+      select: { id_programacion: true, maquina: { select: { horas_uso: true } } },
+    });
+
+    if (origen?.id_programacion) {
+      const programacion = await tx.programacionPreventiva.findUnique({
+        where: { id_programacion: origen.id_programacion },
+      });
+
+      if (programacion) {
+        const hoy = aFecha(hoyLocal());
+
+        await tx.programacionPreventiva.update({
+          where: { id_programacion: programacion.id_programacion },
+          data: {
+            fecha_ultimo_mant: hoy,
+            horas_ultimo_mant: origen.maquina.horas_uso,
+            proximo_mant: programacion.frecuencia_dias
+              ? sumarDias(hoy, programacion.frecuencia_dias)
+              : null,
+          },
+        });
+      }
+    }
 
     return true;
   });
