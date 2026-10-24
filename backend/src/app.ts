@@ -7,6 +7,7 @@ import { authRouter } from "./modules/auth/auth.routes.js";
 import { usuariosRouter } from "./modules/usuarios/usuarios.routes.js";
 import { clientesRouter } from "./modules/clientes/clientes.routes.js";
 import { maquinasRouter } from "./modules/maquinas/maquinas.routes.js";
+import { materialesRouter } from "./modules/materiales/materiales.routes.js";
 import { requireAuth, requireRol } from "./middleware/auth.js";
 
 export const app = express();
@@ -29,6 +30,7 @@ app.use("/api/auth", authRouter);
 app.use("/api/usuarios", requireAuth, requireRol("ADMINISTRADOR"), usuariosRouter);
 app.use("/api/clientes", requireAuth, clientesRouter);
 app.use("/api/maquinas", requireAuth, maquinasRouter);
+app.use("/api/materiales", requireAuth, materialesRouter);
 
 app.use((_req, res) => {
   res.status(404).json({ error: "Ruta no encontrada" });
