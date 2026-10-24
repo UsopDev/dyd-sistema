@@ -12,7 +12,8 @@
     "db:migrate": "node --env-file=.env node_modules/prisma/build/index.js migrate dev",
     "db:studio": "node --env-file=.env node_modules/prisma/build/index.js studio",
     "db:validate": "node --env-file=.env node_modules/prisma/build/index.js validate",
-    "db:seed": "tsx --env-file=.env prisma/seed.ts"
+    "db:seed": "tsx --env-file=.env prisma/seed.ts",
+    "db:deploy": "node --env-file=.env node_modules/prisma/build/index.js migrate deploy"
   },
   "keywords": [],
   "type": "module",
