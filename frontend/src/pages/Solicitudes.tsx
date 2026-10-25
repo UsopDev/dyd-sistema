@@ -5,6 +5,8 @@ import { useAuth } from "../auth/useAuth";
 import Modal from "../components/Modal";
 import Paginacion from "../components/Paginacion";
 import Campo, { estiloInput } from "../components/Campo";
+import DiagnosticoSolicitud from "../components/DiagnosticoSolicitud";
+import CotizacionesSolicitud from "../components/CotizacionesSolicitud";
 import {
   COLORES_ESTADO,
   COLORES_PRIORIDAD,
@@ -292,6 +294,9 @@ function VistaDetalle({
       )}
       {fila("Cotizaciones", String(s._count.cotizaciones))}
       {fila("Orden de trabajo", s.orden_trabajo ? `${s.orden_trabajo.codigo ?? ""} · ${s.orden_trabajo.estado}` : "Sin orden")}
+
+      <DiagnosticoSolicitud solicitud={s} alCambiar={refrescar} />
+      {esAdmin && <CotizacionesSolicitud solicitud={s} alCambiar={refrescar} />}
 
       {errorAccion && <p className="mt-3 text-sm text-red-700">{errorAccion}</p>}
 
