@@ -6,6 +6,7 @@ import Login from "./pages/Login";
 import Inicio from "./pages/Inicio";
 import Clientes from "./pages/Clientes";
 import Maquinas from "./pages/Maquinas";
+import Solicitudes from "./pages/Solicitudes";
 
 export default function App() {
   return (
@@ -18,6 +19,7 @@ export default function App() {
               <Route path="/" element={<Inicio />} />
               <Route path="/clientes" element={<Clientes />} />
               <Route path="/maquinas" element={<Maquinas />} />
+              <Route path="/solicitudes" element={<Solicitudes />} />
             </Route>
           </Route>
         </Routes>
