@@ -1,5 +1,8 @@
-import { Outlet, useNavigate } from "react-router";
+import { NavLink, Outlet, useNavigate } from "react-router";
 import { useAuth } from "../auth/useAuth";
+
+const enlace = ({ isActive }: { isActive: boolean }) =>
+  `rounded px-3 py-1 text-sm ${isActive ? "bg-slate-600" : "hover:bg-slate-700"}`;
 
 export default function Layout() {
   const { usuario, salir } = useAuth();
@@ -14,8 +17,21 @@ export default function Layout() {
 
   return (
     <div className="min-h-screen bg-slate-100">
-      <header className="flex items-center justify-between bg-slate-800 px-6 py-3 text-white">
-        <span className="text-lg font-bold">DyD Sistema</span>
+      <header className="flex flex-wrap items-center justify-between gap-3 bg-slate-800 px-6 py-3 text-white">
+        <div className="flex items-center gap-6">
+          <span className="text-lg font-bold">DyD Sistema</span>
+          <nav className="flex gap-1">
+            <NavLink to="/" end className={enlace}>
+              Inicio
+            </NavLink>
+            <NavLink to="/clientes" className={enlace}>
+              Clientes
+            </NavLink>
+            <NavLink to="/maquinas" className={enlace}>
+              Maquinaria
+            </NavLink>
+          </nav>
+        </div>
         <div className="flex items-center gap-4 text-sm">
           <span>
             {nombre} · {usuario?.rol === "ADMINISTRADOR" ? "Administrador" : "Técnico"}
