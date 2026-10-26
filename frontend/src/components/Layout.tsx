@@ -33,6 +33,9 @@ export default function Layout() {
             <NavLink to="/solicitudes" className={enlace}>
               Solicitudes
             </NavLink>
+            <NavLink to="/ordenes" className={enlace}>
+              Órdenes
+            </NavLink>
           </nav>
         </div>
         <div className="flex items-center gap-4 text-sm">

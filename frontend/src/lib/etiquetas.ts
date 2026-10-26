@@ -42,3 +42,19 @@ export const ESTADOS_GENERAL = {
 export function fechaHora(valor: string): string {
   return new Date(valor).toLocaleString("es");
 }
+
+export const ESTADOS_ORDEN = {
+  PENDIENTE: "Pendiente",
+  EN_PROCESO: "En proceso",
+  FINALIZADA: "Finalizada",
+  CANCELADA: "Cancelada",
+} as const;
+
+export type EstadoOrden = keyof typeof ESTADOS_ORDEN;
+
+export const COLORES_ORDEN: Record<EstadoOrden, string> = {
+  PENDIENTE: "bg-slate-200 text-slate-700",
+  EN_PROCESO: "bg-amber-100 text-amber-800",
+  FINALIZADA: "bg-green-100 text-green-800",
+  CANCELADA: "bg-red-100 text-red-800",
+};
