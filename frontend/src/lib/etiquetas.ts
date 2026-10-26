@@ -58,3 +58,43 @@ export const COLORES_ORDEN: Record<EstadoOrden, string> = {
   FINALIZADA: "bg-green-100 text-green-800",
   CANCELADA: "bg-red-100 text-red-800",
 };
+
+export const ESTADOS_MANT = {
+  AL_DIA: "Al día",
+  PROXIMO: "Próximo",
+  VENCIDO: "Vencido",
+} as const;
+
+export type EstadoMant = keyof typeof ESTADOS_MANT;
+
+export const COLORES_MANT: Record<EstadoMant, string> = {
+  AL_DIA: "bg-green-100 text-green-800",
+  PROXIMO: "bg-amber-100 text-amber-800",
+  VENCIDO: "bg-red-100 text-red-800",
+};
+
+export interface Programacion {
+  id_programacion: string;
+  id_maquina: string;
+  descripcion: string;
+  frecuencia_horas: number | null;
+  frecuencia_dias: number | null;
+  dias_aviso: number;
+  horas_aviso: string;
+  proximo_mant: string | null;
+  activo: boolean;
+  maquina: { id_maquina: string; codigo: string | null; nombre: string; horas_uso: string };
+  estado_mantenimiento: {
+    estado: EstadoMant;
+    dias_restantes: number | null;
+    horas_restantes: number | null;
+  };
+}
+
+export function restante(p: Programacion): string {
+  const { dias_restantes: d, horas_restantes: h } = p.estado_mantenimiento;
+  const partes: string[] = [];
+  if (h !== null) partes.push(`${h} h`);
+  if (d !== null) partes.push(`${d} días`);
+  return partes.join(" · ") || "—";
+}

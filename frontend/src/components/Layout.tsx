@@ -36,6 +36,9 @@ export default function Layout() {
             <NavLink to="/ordenes" className={enlace}>
               Órdenes
             </NavLink>
+            <NavLink to="/preventivo" className={enlace}>
+              Preventivo
+            </NavLink>
           </nav>
         </div>
         <div className="flex items-center gap-4 text-sm">
