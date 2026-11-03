@@ -92,7 +92,6 @@ model Usuario {
   creado_en      DateTime   @default(now())
   actualizado_en DateTime   @default(now()) @updatedAt
 
-  tokens_refresco TokenRefresco[]
   registros_uso   RegistroUso[]
   solicitudes     Solicitud[]
   diagnosticos    Diagnostico[]
@@ -102,19 +101,6 @@ model Usuario {
   movimientos     MovimientoInventario[]
 
   @@map("usuarios")
-}
-
-model TokenRefresco {
-  id_token   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  id_usuario String   @db.Uuid
-  token_hash String   @db.VarChar(255)
-  expira_en  DateTime
-  revocado   Boolean  @default(false)
-  creado_en  DateTime @default(now())
-
-  usuario Usuario @relation(fields: [id_usuario], references: [id_usuario])
-
-  @@map("tokens_refresco")
 }
 
 model Cliente {
