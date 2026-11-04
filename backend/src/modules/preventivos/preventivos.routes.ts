@@ -94,7 +94,7 @@ function conEstado<T extends Programacion>(p: T, hoy: Date) {
   };
 }
 
-async function cargar(where: { id_maquina?: string; activo?: boolean }) {
+export async function cargar(where: { id_maquina?: string; activo?: boolean }) {
   const hoy = aFecha(hoyLocal());
 
   const filas = await prisma.programacionPreventiva.findMany({

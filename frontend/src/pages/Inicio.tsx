@@ -1,4 +1,6 @@
+import { useState } from "react";
 import { Link } from "react-router";
+import { api } from "../lib/api";
 import { useAuth } from "../auth/useAuth";
 import { useConsulta } from "../lib/useConsulta";
 import AlertasPreventivo from "../components/AlertasPreventivo";
@@ -87,6 +89,41 @@ function StockBajo() {
   );
 }
 
+function EnviarAlertas() {
+  const [mensaje, setMensaje] = useState<string | null>(null);
+  const [enviando, setEnviando] = useState(false);
+
+  async function enviar() {
+    setEnviando(true);
+    setMensaje(null);
+    try {
+      const r = (await api("/alertas-correo/enviar?forzar=true", { method: "POST" })) as {
+        enviadas: number;
+        fallidas: number;
+        revisadas: number;
+      };
+      setMensaje(`Revisadas: ${r.revisadas} · Enviadas: ${r.enviadas} · Fallidas: ${r.fallidas}`);
+    } catch (err) {
+      setMensaje(err instanceof Error ? err.message : "No se pudo enviar");
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  return (
+    <div className="mt-4 rounded-xl bg-white p-6 shadow">
+      <button
+        onClick={enviar}
+        disabled={enviando}
+        className="rounded bg-slate-800 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-50"
+      >
+        {enviando ? "Enviando..." : "Enviar alertas por correo ahora"}
+      </button>
+      {mensaje && <p className="mt-2 text-sm text-slate-700">{mensaje}</p>}
+    </div>
+  );
+}
+
 export default function Inicio() {
   const { usuario } = useAuth();
   const esAdmin = usuario?.rol === "ADMINISTRADOR";
@@ -144,6 +181,7 @@ export default function Inicio() {
       </div>
 
       <StockBajo />
+      {esAdmin && <EnviarAlertas />}
       <AlertasPreventivo />
     </div>
   );
