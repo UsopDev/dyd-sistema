@@ -6,6 +6,7 @@ import Login from "./pages/Login";
 import Inicio from "./pages/Inicio";
 import Clientes from "./pages/Clientes";
 import Maquinas from "./pages/Maquinas";
+import Materiales from "./pages/Materiales";
 import Solicitudes from "./pages/Solicitudes";
 import Ordenes from "./pages/Ordenes";
 import Preventivo from "./pages/Preventivo";
@@ -21,6 +22,7 @@ export default function App() {
               <Route path="/" element={<Inicio />} />
               <Route path="/clientes" element={<Clientes />} />
               <Route path="/maquinas" element={<Maquinas />} />
+              <Route path="/materiales" element={<Materiales />} />
               <Route path="/solicitudes" element={<Solicitudes />} />
               <Route path="/ordenes" element={<Ordenes />} />
               <Route path="/preventivo" element={<Preventivo />} />

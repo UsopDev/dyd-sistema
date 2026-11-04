@@ -30,6 +30,9 @@ export default function Layout() {
             <NavLink to="/maquinas" className={enlace}>
               Maquinaria
             </NavLink>
+            <NavLink to="/materiales" className={enlace}>
+              Materiales
+            </NavLink>
             <NavLink to="/solicitudes" className={enlace}>
               Solicitudes
             </NavLink>
