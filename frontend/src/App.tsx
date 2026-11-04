@@ -10,6 +10,7 @@ import Materiales from "./pages/Materiales";
 import Solicitudes from "./pages/Solicitudes";
 import Ordenes from "./pages/Ordenes";
 import Preventivo from "./pages/Preventivo";
+import Usuarios from "./pages/Usuarios";
 
 export default function App() {
   return (
@@ -26,6 +27,7 @@ export default function App() {
               <Route path="/solicitudes" element={<Solicitudes />} />
               <Route path="/ordenes" element={<Ordenes />} />
               <Route path="/preventivo" element={<Preventivo />} />
+              <Route path="/usuarios" element={<Usuarios />} />
             </Route>
           </Route>
         </Routes>

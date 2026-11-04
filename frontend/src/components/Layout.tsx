@@ -42,6 +42,11 @@ export default function Layout() {
             <NavLink to="/preventivo" className={enlace}>
               Preventivo
             </NavLink>
+            {usuario?.rol === "ADMINISTRADOR" && (
+              <NavLink to="/usuarios" className={enlace}>
+                Usuarios
+              </NavLink>
+            )}
           </nav>
         </div>
         <div className="flex items-center gap-4 text-sm">
