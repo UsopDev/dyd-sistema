@@ -14,6 +14,7 @@ import { cotizacionesRouter } from "./modules/cotizaciones/cotizaciones.routes.j
 import { ordenesRouter } from "./modules/ordenes/ordenes.routes.js";
 import { usoRouter } from "./modules/uso/uso.routes.js";
 import { preventivosRouter } from "./modules/preventivos/preventivos.routes.js";
+import { reportesRouter } from "./modules/reportes/reportes.routes.js";
 import { requireAuth, requireRol } from "./middleware/auth.js";
 
 export const app = express();
@@ -43,6 +44,7 @@ app.use("/api/cotizaciones", requireAuth, requireRol("ADMINISTRADOR"), cotizacio
 app.use("/api/ordenes", requireAuth, ordenesRouter);
 app.use("/api/uso", requireAuth, usoRouter);
 app.use("/api/preventivos", requireAuth, preventivosRouter);
+app.use("/api/reportes", requireAuth, requireRol("ADMINISTRADOR"), reportesRouter);
 
 app.use((_req, res) => {
   res.status(404).json({ error: "Ruta no encontrada" });

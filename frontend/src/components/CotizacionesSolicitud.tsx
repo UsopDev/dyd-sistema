@@ -1,4 +1,5 @@
-import { useState, type SyntheticEvent } from "react";
+import { useEffect, useState, type SyntheticEvent } from "react";
+import { createPortal } from "react-dom";
 import { api } from "../lib/api";
 import { useConsulta } from "../lib/useConsulta";
 import Campo, { estiloInput } from "./Campo";
@@ -43,6 +44,20 @@ interface DetalleCot extends Resumen {
 }
 
 const dinero = (n: number | string) => Number(n).toFixed(2);
+
+const EMPRESA = {
+  nombre: "Soldaduras Especiales y Rectificaciones DYD E.I.R.L.",
+  ruc: "RUC 20505403089",
+  direccion: "Urbanización Faucet, Mz. M, Lote 1A",
+  telefono: "Tel. +51 978 719 848",
+  correo: "Soldadurasespecialesyrectificacioneseirl@hotmail.com",
+};
+
+interface Contexto {
+  codigoSolicitud?: string | null;
+  cliente?: { razon_social: string } | null;
+  maquina?: { nombre: string; codigo?: string | null } | null;
+}
 const lineaVacia = (): Linea => ({
   tipo: "SERVICIO",
   descripcion: "",
@@ -256,8 +271,15 @@ function Formulario({
   );
 }
 
-function VerCotizacion({ id }: { id: string }) {
+function VerCotizacion({ id, contexto }: { id: string; contexto: Contexto }) {
   const { datos, error, cargando } = useConsulta<{ cotizacion: DetalleCot }>(`/cotizaciones/${id}`);
+  const [imprimiendo, setImprimiendo] = useState(false);
+
+  useEffect(() => {
+    if (!imprimiendo) return;
+    window.print();
+    setImprimiendo(false);
+  }, [imprimiendo]);
 
   if (error) return <p className="text-sm text-red-700">{error}</p>;
   if (cargando || !datos) return <p className="text-sm text-slate-500">Cargando...</p>;
@@ -295,6 +317,84 @@ function VerCotizacion({ id }: { id: string }) {
       <p className="mt-1 text-slate-500">
         Por {c.usuario.nombres} {c.usuario.apellidos} · {fechaHora(c.fecha)}
       </p>
+      <button
+        onClick={() => setImprimiendo(true)}
+        className="mt-3 rounded bg-slate-800 px-3 py-1 text-sm text-white hover:bg-slate-700"
+      >
+        Imprimir cotización
+      </button>
+
+      {imprimiendo &&
+        createPortal(
+          <div id="cotizacion-impresion">
+            <style>{`
+              #cotizacion-impresion { display: none; }
+              @media print {
+                #root { display: none !important; }
+                #cotizacion-impresion { display: block; padding: 24px; color: #000; font-family: sans-serif; }
+              }
+            `}</style>
+
+            <div style={{ borderBottom: "2px solid #000", paddingBottom: 8, marginBottom: 16 }}>
+              <h1 style={{ fontSize: 22, fontWeight: 700 }}>{EMPRESA.nombre}</h1>
+              <p style={{ fontSize: 12 }}>
+                {EMPRESA.ruc} · {EMPRESA.direccion} · {EMPRESA.telefono} · {EMPRESA.correo}
+              </p>
+            </div>
+
+            <h2 style={{ fontSize: 18, fontWeight: 700 }}>COTIZACIÓN {c.codigo ?? ""}</h2>
+            <p style={{ fontSize: 13, marginTop: 4 }}>Fecha: {fechaHora(c.fecha)}</p>
+            {contexto.codigoSolicitud && (
+              <p style={{ fontSize: 13 }}>Solicitud: {contexto.codigoSolicitud}</p>
+            )}
+            {contexto.cliente && <p style={{ fontSize: 13 }}>Cliente: {contexto.cliente.razon_social}</p>}
+            {contexto.maquina && (
+              <p style={{ fontSize: 13 }}>
+                Máquina: {contexto.maquina.codigo ? `${contexto.maquina.codigo} · ` : ""}
+                {contexto.maquina.nombre}
+              </p>
+            )}
+
+            <table style={{ width: "100%", marginTop: 16, fontSize: 13, borderCollapse: "collapse" }}>
+              <thead>
+                <tr style={{ borderBottom: "1px solid #000", textAlign: "left" }}>
+                  <th style={{ padding: "6px 4px" }}>Tipo</th>
+                  <th>Descripción</th>
+                  <th style={{ textAlign: "right" }}>Cant.</th>
+                  <th style={{ textAlign: "right" }}>P. unit.</th>
+                  <th style={{ textAlign: "right" }}>Subtotal</th>
+                </tr>
+              </thead>
+              <tbody>
+                {c.detalles.map((d) => (
+                  <tr key={d.id_detalle} style={{ borderBottom: "1px solid #ccc" }}>
+                    <td style={{ padding: "6px 4px" }}>{d.tipo === "SERVICIO" ? "Servicio" : "Material"}</td>
+                    <td>{d.descripcion}</td>
+                    <td style={{ textAlign: "right" }}>{Number(d.cantidad)}</td>
+                    <td style={{ textAlign: "right" }}>{dinero(d.precio_unitario)}</td>
+                    <td style={{ textAlign: "right" }}>{dinero(d.subtotal)}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td colSpan={4} style={{ textAlign: "right", fontWeight: 700, paddingTop: 8 }}>
+                    TOTAL
+                  </td>
+                  <td style={{ textAlign: "right", fontWeight: 700, paddingTop: 8 }}>{dinero(c.total)}</td>
+                </tr>
+              </tfoot>
+            </table>
+
+            {c.observaciones && (
+              <p style={{ fontSize: 13, marginTop: 16 }}>Observaciones: {c.observaciones}</p>
+            )}
+            <p style={{ fontSize: 12, marginTop: 24 }}>
+              Elaborada por {c.usuario.nombres} {c.usuario.apellidos}
+            </p>
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }
@@ -303,7 +403,13 @@ export default function CotizacionesSolicitud({
   solicitud,
   alCambiar,
 }: {
-  solicitud: { id_solicitud: string; estado: EstadoSolicitud };
+  solicitud: {
+    id_solicitud: string;
+    estado: EstadoSolicitud;
+    codigo?: string | null;
+    cliente?: { razon_social: string } | null;
+    maquina?: { nombre: string; codigo?: string | null } | null;
+  };
   alCambiar: () => void;
 }) {
   const [creando, setCreando] = useState(false);
@@ -347,7 +453,16 @@ export default function CotizacionesSolicitud({
                   {abierta === c.id_cotizacion ? "Ocultar" : "Ver"}
                 </button>
               </div>
-              {abierta === c.id_cotizacion && <VerCotizacion id={c.id_cotizacion} />}
+              {abierta === c.id_cotizacion && (
+                <VerCotizacion
+                  id={c.id_cotizacion}
+                  contexto={{
+                    codigoSolicitud: solicitud.codigo,
+                    cliente: solicitud.cliente,
+                    maquina: solicitud.maquina,
+                  }}
+                />
+              )}
             </div>
           ))}
           {puedeCotizar && (

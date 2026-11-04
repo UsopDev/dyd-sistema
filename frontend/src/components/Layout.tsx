@@ -43,9 +43,14 @@ export default function Layout() {
               Preventivo
             </NavLink>
             {usuario?.rol === "ADMINISTRADOR" && (
-              <NavLink to="/usuarios" className={enlace}>
-                Usuarios
-              </NavLink>
+              <>
+                <NavLink to="/historiales" className={enlace}>
+                  Historiales
+                </NavLink>
+                <NavLink to="/usuarios" className={enlace}>
+                  Usuarios
+                </NavLink>
+              </>
             )}
           </nav>
         </div>

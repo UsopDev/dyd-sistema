@@ -11,6 +11,7 @@ import Solicitudes from "./pages/Solicitudes";
 import Ordenes from "./pages/Ordenes";
 import Preventivo from "./pages/Preventivo";
 import Usuarios from "./pages/Usuarios";
+import Historiales from "./pages/Historiales";
 
 export default function App() {
   return (
@@ -28,6 +29,7 @@ export default function App() {
               <Route path="/ordenes" element={<Ordenes />} />
               <Route path="/preventivo" element={<Preventivo />} />
               <Route path="/usuarios" element={<Usuarios />} />
+              <Route path="/historiales" element={<Historiales />} />
             </Route>
           </Route>
         </Routes>
