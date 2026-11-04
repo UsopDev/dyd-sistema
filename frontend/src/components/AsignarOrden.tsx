@@ -115,12 +115,19 @@ export default function AsignarOrden({
 }) {
   const [abierto, setAbierto] = useState(false);
 
-  const puede =
-    !solicitud.orden_trabajo &&
-    solicitud.diagnostico &&
-    (solicitud.estado === "EN_DIAGNOSTICO" || solicitud.estado === "COTIZADA");
+  if (solicitud.orden_trabajo || !solicitud.diagnostico) return null;
 
-  if (!puede) return null;
+  // La cotización es obligatoria: sin ella no se puede asignar la orden.
+  if (solicitud.estado === "EN_DIAGNOSTICO") {
+    return (
+      <section className="mt-5 border-t border-slate-200 pt-4">
+        <h3 className="mb-3 font-bold text-slate-800">Orden de trabajo</h3>
+        <p className="text-sm text-slate-500">Para asignar la orden, primero registra una cotización.</p>
+      </section>
+    );
+  }
+
+  if (solicitud.estado !== "COTIZADA") return null;
 
   return (
     <section className="mt-5 border-t border-slate-200 pt-4">

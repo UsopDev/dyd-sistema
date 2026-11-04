@@ -145,9 +145,14 @@ ordenesRouter.post("/", soloAdmin, async (req, res) => {
   const datos = validar(crearSchema, req.body, res);
   if (!datos) return;
 
+  // CAMBIO 1: se pide también la cantidad de cotizaciones de la solicitud.
   const solicitud = await prisma.solicitud.findUnique({
     where: { id_solicitud: datos.id_solicitud },
-    select: { id_solicitud: true, diagnostico: { select: { id_diagnostico: true } } },
+    select: {
+      id_solicitud: true,
+      diagnostico: { select: { id_diagnostico: true } },
+      _count: { select: { cotizaciones: true } },
+    },
   });
 
   if (!solicitud) {
@@ -157,6 +162,14 @@ ordenesRouter.post("/", soloAdmin, async (req, res) => {
 
   if (!solicitud.diagnostico) {
     res.status(409).json({ error: "La solicitud todavía no tiene diagnóstico" });
+    return;
+  }
+
+  // CAMBIO 2: la cotización es obligatoria antes de asignar una orden.
+  if (solicitud._count.cotizaciones === 0) {
+    res.status(409).json({
+      error: "La solicitud todavía no tiene cotización. Cotízala antes de asignar la orden",
+    });
     return;
   }
 
@@ -183,10 +196,11 @@ ordenesRouter.post("/", soloAdmin, async (req, res) => {
   const idDiagnostico = solicitud.diagnostico.id_diagnostico;
 
   const orden = await prisma.$transaction(async (tx) => {
+    // CAMBIO 3: solo se puede asignar una solicitud que esté COTIZADA.
     const movida = await tx.solicitud.updateMany({
       where: {
         id_solicitud: solicitud.id_solicitud,
-        estado: { in: ["EN_DIAGNOSTICO", "COTIZADA"] },
+        estado: "COTIZADA",
       },
       data: { estado: "ASIGNADA" },
     });
@@ -207,7 +221,7 @@ ordenesRouter.post("/", soloAdmin, async (req, res) => {
 
   if (!orden) {
     res.status(409).json({
-      error: "Solo se puede asignar una solicitud con diagnóstico, sin orden y no cancelada",
+      error: "Solo se puede asignar una solicitud cotizada, sin orden y no cancelada",
     });
     return;
   }

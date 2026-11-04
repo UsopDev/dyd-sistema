@@ -93,8 +93,13 @@ export interface Programacion {
 
 export function restante(p: Programacion): string {
   const { dias_restantes: d, horas_restantes: h } = p.estado_mantenimiento;
+  const dias = (n: number) => `${n} ${n === 1 ? "día" : "días"}`;
   const partes: string[] = [];
-  if (h !== null) partes.push(`${h} h`);
-  if (d !== null) partes.push(`${d} días`);
+
+  if (h !== null) partes.push(h < 0 ? `${Math.abs(h)} h vencidas` : `${h} h`);
+  if (d !== null) {
+    partes.push(d < 0 ? `vencido hace ${dias(Math.abs(d))}` : d === 0 ? "vence hoy" : dias(d));
+  }
+
   return partes.join(" · ") || "—";
 }
