@@ -89,7 +89,9 @@ export function iniciarRevisionAutomatica() {
   }
 
   const revisar = () =>
-    enviarAlertasPreventivas().catch((e) => console.error("Error en la revisión de alertas:", e));
+    enviarAlertasPreventivas()
+      .then((r) => console.log("Revisión de alertas preventivas:", r))
+      .catch((e) => console.error("Error en la revisión de alertas:", e));
 
   setTimeout(revisar, 15_000);
   setInterval(revisar, 6 * 60 * 60 * 1000);
