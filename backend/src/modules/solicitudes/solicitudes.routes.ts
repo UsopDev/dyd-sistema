@@ -79,7 +79,7 @@ solicitudesRouter.get("/", async (req, res) => {
     prisma.solicitud.findMany({
       where,
       include: resumen,
-      orderBy: { fecha_recepcion: "desc" },
+      orderBy: [{ prioridad: "asc" }, { fecha_recepcion: "asc" }],
       skip: (filtros.pagina - 1) * filtros.limite,
       take: filtros.limite,
     }),
