@@ -3,8 +3,11 @@ import { z } from "zod";
 import { prisma } from "../../lib/prisma.js";
 import { validar } from "../../lib/validar.js";
 import type { SesionUsuario } from "../../lib/jwt.js";
+import { adjuntosRouter } from "./adjuntos.routes.js";
 
 export const diagnosticosRouter = Router();
+
+diagnosticosRouter.use("/:id/adjuntos", adjuntosRouter);
 
 const estadoGeneralSchema = z.enum(["BUENO", "REGULAR", "MALO", "CRITICO"]);
 

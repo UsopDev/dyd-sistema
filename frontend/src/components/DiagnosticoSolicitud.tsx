@@ -1,4 +1,4 @@
-import { useState, type SyntheticEvent } from "react";
+import { useState, type ChangeEvent, type SyntheticEvent } from "react";
 import { api } from "../lib/api";
 import { useConsulta } from "../lib/useConsulta";
 import { useAuth } from "../auth/useAuth";
@@ -15,6 +15,7 @@ interface Diagnostico {
   recomendaciones: string | null;
   fecha: string;
   tecnico: { id_usuario: string; nombres: string; apellidos: string };
+  adjuntos: { id_adjunto: string; nombre_original: string; tipo_mime: string | null; tamano_bytes: number | null }[];
 }
 
 interface Props {
@@ -146,6 +147,90 @@ function Formulario({
   );
 }
 
+const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:3000/api";
+
+function Adjuntos({
+  idDiagnostico,
+  adjuntos,
+  puedeSubir,
+  alSubir,
+}: {
+  idDiagnostico: string;
+  adjuntos: Diagnostico["adjuntos"];
+  puedeSubir: boolean;
+  alSubir: () => void;
+}) {
+  const [error, setError] = useState<string | null>(null);
+  const [subiendo, setSubiendo] = useState(false);
+
+  async function subir(e: ChangeEvent<HTMLInputElement>) {
+    const archivo = e.target.files?.[0];
+    e.target.value = "";
+    if (!archivo) return;
+
+    setError(null);
+    setSubiendo(true);
+
+    try {
+      const form = new FormData();
+      form.append("archivo", archivo);
+
+      const r = await fetch(`${API_BASE}/diagnosticos/${idDiagnostico}/adjuntos`, {
+        method: "POST",
+        body: form,
+        credentials: "include",
+      });
+
+      if (!r.ok) {
+        const j = await r.json().catch(() => null);
+        throw new Error(j?.error ?? "No se pudo subir el archivo");
+      }
+
+      alSubir();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "No se pudo subir el archivo");
+    } finally {
+      setSubiendo(false);
+    }
+  }
+
+  return (
+    <div className="mt-3 text-sm">
+      <p className="mb-1 text-slate-500">Fotografías y documentos de respaldo</p>
+      {adjuntos.length === 0 && <p className="text-slate-500">Sin archivos adjuntos.</p>}
+      <ul>
+        {adjuntos.map((a) => (
+          <li key={a.id_adjunto} className="mb-1">
+            <a
+              href={`${API_BASE}/diagnosticos/${idDiagnostico}/adjuntos/${a.id_adjunto}`}
+              target="_blank"
+              rel="noreferrer"
+              className="text-blue-700 hover:underline"
+            >
+              {a.nombre_original}
+            </a>{" "}
+            <span className="text-slate-500">({Math.max(1, Math.round((a.tamano_bytes ?? 0) / 1024))} KB)</span>
+          </li>
+        ))}
+      </ul>
+      {puedeSubir && (
+        <label className="mt-2 inline-block cursor-pointer rounded border border-slate-300 px-3 py-1 hover:bg-slate-50">
+          {subiendo ? "Subiendo..." : "Adjuntar archivo"}
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp,application/pdf"
+            disabled={subiendo}
+            onChange={subir}
+            className="hidden"
+          />
+        </label>
+      )}
+      <p className="mt-1 text-xs text-slate-500">JPG, PNG, WEBP o PDF, hasta 5 MB.</p>
+      {error && <p className="mt-1 text-red-700">{error}</p>}
+    </div>
+  );
+}
+
 function VerDiagnostico({
   id,
   estadoSolicitud,
@@ -201,6 +286,12 @@ function VerDiagnostico({
       {fila("Recomendaciones", d.recomendaciones)}
       {fila("Técnico", `${d.tecnico.nombres} ${d.tecnico.apellidos}`)}
       {fila("Fecha", fechaHora(d.fecha))}
+      <Adjuntos
+        idDiagnostico={d.id_diagnostico}
+        adjuntos={d.adjuntos ?? []}
+        puedeSubir={puedeEditar}
+        alSubir={() => setRecarga((n) => n + 1)}
+      />
       {puedeEditar && (
         <button
           onClick={() => setEditando(true)}
