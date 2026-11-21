@@ -1,3 +1,9 @@
+# Variables que se repiten en los servicios que hablan con Postgres y Redis.
+x-backend-environment: &backend-environment
+  DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
+  REDIS_URL: redis://redis:6379
+  TZ: America/Lima
+
 services:
   postgres:
     image: postgres:18
@@ -8,7 +14,7 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
     ports:
-      - "5433:5432"
+      - "127.0.0.1:5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql
     healthcheck:
@@ -22,7 +28,7 @@ services:
     container_name: dyd_redis
     restart: unless-stopped
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     volumes:
       - redis_data:/data
     healthcheck:
@@ -31,6 +37,58 @@ services:
       timeout: 5s
       retries: 10
 
+  migrate:
+    build:
+      context: ./backend
+      target: migrate
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+
+  backend:
+    build:
+      context: ./backend
+      target: runtime
+    container_name: dyd_backend
+    restart: unless-stopped
+    init: true
+    env_file:
+      - ./backend/.env
+    environment: *backend-environment
+    ports:
+      - "3000:3000"
+    volumes:
+      - backend_uploads:/app/uploads
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+
+  # Servicio opcional para cargar el administrador inicial:
+  #   docker compose --profile tools run --rm seed
+  seed:
+    profiles: ["tools"]
+    build:
+      context: ./backend
+      target: build
+    command: ["./node_modules/.bin/tsx", "prisma/seed.ts"]
+    env_file:
+      - ./backend/.env
+    environment: *backend-environment
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: "no"
+
 volumes:
   postgres_data:
   redis_data:
+  backend_uploads:
