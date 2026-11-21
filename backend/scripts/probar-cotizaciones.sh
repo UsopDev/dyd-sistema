@@ -54,7 +54,9 @@ R=$(curl -s -w "\n%{http_code}" -b $ADMIN -X POST $URL/api/cotizaciones -H "$JSO
   -d "{\"id_solicitud\":\"$S1\",\"observaciones\":\"Válida por 15 días\",\"detalles\":[{\"tipo\":\"SERVICIO\",\"descripcion\":\"Mano de obra\",\"cantidad\":2,\"precio_unitario\":150},{\"tipo\":\"MATERIAL\",\"id_material\":\"$M_PRECIO\",\"cantidad\":3}]}")
 echo "$R" | tail -n1
 CUERPO=$(echo "$R" | head -n1)
-echo "$CUERPO" | grep -oE '"codigo":"COT-[0-9-]*"|"total":"[^"]*"|"estado":"[A-Z_]*"'
+echo "$CUERPO" | grep -oE '"codigo":"COT-[0-9-]*"|"total":"[^"]*"'
+echo -n "estado de la solicitud: "
+curl -s -b $ADMIN $URL/api/solicitudes/$S1 | grep -o '"estado":"[A-Z_]*"' | head -n1
 ID_COT=$(echo "$CUERPO" | idx id_cotizacion)
 
 echo "--- 2. Segunda cotización (revisión) de S1 (esperado: 201, otro código, total 400)"

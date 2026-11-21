@@ -48,7 +48,9 @@ diagnosticar() {
 S1=$(nueva_solicitud "Solicitud principal de la orden"); diagnosticar $S1
 curl -s -o /dev/null -b $ADMIN -X POST $URL/api/cotizaciones -H "$JSON" \
   -d "{\"id_solicitud\":\"$S1\",\"detalles\":[{\"tipo\":\"SERVICIO\",\"descripcion\":\"Reparación\",\"cantidad\":1,\"precio_unitario\":200}]}"
-S2=$(nueva_solicitud "Solicitud sin cotización"); diagnosticar $S2
+S2=$(nueva_solicitud "Solicitud cotizada para orden"); diagnosticar $S2
+curl -s -o /dev/null -b $ADMIN -X POST $URL/api/cotizaciones -H "$JSON" \
+  -d "{\"id_solicitud\":\"$S2\",\"detalles\":[{\"tipo\":\"SERVICIO\",\"descripcion\":\"Reparación\",\"cantidad\":1,\"precio_unitario\":100}]}"
 S3=$(nueva_solicitud "Solicitud sin diagnóstico")
 
 echo "--- 1. Admin crea orden de S1 para el técnico A (esperado: 201, OT-, PENDIENTE, monto 200, solicitud ASIGNADA)"
@@ -77,7 +79,7 @@ echo "--- 4. Un técnico intenta crear una orden (esperado: 403)"
 curl -s -o /dev/null -w "%{http_code}\n" -b $TA -X POST $URL/api/ordenes -H "$JSON" \
   -d "{\"id_solicitud\":\"$S2\",\"id_tecnico\":\"$ID_TA\"}"
 
-echo "--- 5. Orden de S2 (sin cotización) para el técnico B con monto manual 500 (esperado: 201 y monto 500)"
+echo "--- 5. Orden de S2 (cotizada) para el técnico B con monto manual 500 (esperado: 201 y monto 500)"
 R=$(curl -s -b $ADMIN -X POST $URL/api/ordenes -H "$JSON" \
   -d "{\"id_solicitud\":\"$S2\",\"id_tecnico\":\"$ID_TB\",\"monto\":500}")
 echo "$R" | grep -oE '"monto":"[^"]*"'

@@ -1,6 +1,13 @@
-# Variables que se repiten en los servicios que hablan con Postgres y Redis.
+# Stack completo del backend: PostgreSQL, Redis y la API.
+# Se ejecuta desde este directorio:
+#   cd backend
+#   docker compose up -d --build
+
+name: dyd-sistema
+
+# Variables compartidas por los servicios que hablan con Postgres y Redis.
 x-backend-environment: &backend-environment
-  DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
+  DATABASE_URL: postgresql://${POSTGRES_USER:-dyd}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-dyd_db}?schema=public
   REDIS_URL: redis://redis:6379
   TZ: America/Lima
 
@@ -10,15 +17,15 @@ services:
     container_name: dyd_postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER:-dyd}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Define POSTGRES_PASSWORD en backend/.env}
+      POSTGRES_DB: ${POSTGRES_DB:-dyd_db}
     ports:
       - "127.0.0.1:5433:5432"
     volumes:
       - postgres_data:/var/lib/postgresql
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-dyd} -d ${POSTGRES_DB:-dyd_db}"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -37,12 +44,13 @@ services:
       timeout: 5s
       retries: 10
 
+  # Aplica las migraciones de Prisma una vez y termina.
   migrate:
     build:
-      context: ./backend
+      context: .
       target: migrate
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?schema=public
+      DATABASE_URL: postgresql://${POSTGRES_USER:-dyd}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-dyd_db}?schema=public
     depends_on:
       postgres:
         condition: service_healthy
@@ -50,13 +58,13 @@ services:
 
   backend:
     build:
-      context: ./backend
+      context: .
       target: runtime
     container_name: dyd_backend
     restart: unless-stopped
     init: true
     env_file:
-      - ./backend/.env
+      - .env
     environment: *backend-environment
     ports:
       - "3000:3000"
@@ -75,11 +83,11 @@ services:
   seed:
     profiles: ["tools"]
     build:
-      context: ./backend
+      context: .
       target: build
     command: ["./node_modules/.bin/tsx", "prisma/seed.ts"]
     env_file:
-      - ./backend/.env
+      - .env
     environment: *backend-environment
     depends_on:
       postgres:

@@ -104,6 +104,9 @@ S=$(curl -s -b $ADMIN -X POST $URL/api/solicitudes -H "$JSON" \
   -d "{\"id_maquina\":\"$ID_MAQ\",\"tipo_servicio\":\"PREVENTIVO\",\"descripcion\":\"Cambio de aceite programado\",\"id_programacion\":\"$PH\"}" | idx id_solicitud)
 curl -s -o /dev/null -b $ADMIN -X POST $URL/api/diagnosticos -H "$JSON" \
   -d "{\"id_solicitud\":\"$S\",\"estado_general\":\"REGULAR\",\"fallas_detectadas\":\"Aceite vencido\"}"
+# La orden exige cotización previa.
+curl -s -o /dev/null -b $ADMIN -X POST $URL/api/cotizaciones -H "$JSON" \
+  -d "{\"id_solicitud\":\"$S\",\"detalles\":[{\"tipo\":\"SERVICIO\",\"descripcion\":\"Cambio de aceite\",\"cantidad\":1,\"precio_unitario\":100}]}"
 OT=$(curl -s -b $ADMIN -X POST $URL/api/ordenes -H "$JSON" \
   -d "{\"id_solicitud\":\"$S\",\"id_tecnico\":\"$ID_TEC\"}" | idx id_orden_trabajo)
 curl -s -o /dev/null -b $ADMIN -X POST $URL/api/ordenes/$OT/iniciar
