@@ -1,0 +1,17 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "lsp": true,
+  "mcp": {
+    "filesystem": {
+      "type": "local",
+      "enabled": true,
+      "command": [
+        "npx",
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "/home/nicolas/Desktop/Udabol/HelpGrils/Yanira/dyd-sistema/backend/",
+        "/home/nicolas/Desktop/Udabol/HelpGrils/Yanira/dyd-sistema/frontend/"
+      ]
+    }
+  }
+}

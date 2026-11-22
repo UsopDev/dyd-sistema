@@ -20,6 +20,17 @@ export const COLORES_ESTADO: Record<EstadoSolicitud, string> = {
   CANCELADA: "bg-red-100 text-red-800",
 };
 
+// Los mismos estados, en hex: los gráficos SVG no pueden usar clases de Tailwind.
+export const HEX_ESTADO: Record<EstadoSolicitud, string> = {
+  RECIBIDA: "#94a3b8",
+  EN_DIAGNOSTICO: "#0ea5e9",
+  COTIZADA: "#8b5cf6",
+  ASIGNADA: "#6366f1",
+  EN_PROCESO: "#f59e0b",
+  FINALIZADA: "#10b981",
+  CANCELADA: "#f43f5e",
+};
+
 export const PRIORIDADES = { ALTA: "Alta", MEDIA: "Media", BAJA: "Baja" } as const;
 export type Prioridad = keyof typeof PRIORIDADES;
 
@@ -59,6 +70,13 @@ export const COLORES_ORDEN: Record<EstadoOrden, string> = {
   CANCELADA: "bg-red-100 text-red-800",
 };
 
+export const HEX_ORDEN: Record<EstadoOrden, string> = {
+  PENDIENTE: "#94a3b8",
+  EN_PROCESO: "#f59e0b",
+  FINALIZADA: "#10b981",
+  CANCELADA: "#f43f5e",
+};
+
 export const ESTADOS_MANT = {
   AL_DIA: "Al día",
   PROXIMO: "Próximo",
@@ -71,6 +89,12 @@ export const COLORES_MANT: Record<EstadoMant, string> = {
   AL_DIA: "bg-green-100 text-green-800",
   PROXIMO: "bg-amber-100 text-amber-800",
   VENCIDO: "bg-red-100 text-red-800",
+};
+
+export const HEX_MANT: Record<EstadoMant, string> = {
+  AL_DIA: "#10b981",
+  PROXIMO: "#f59e0b",
+  VENCIDO: "#f43f5e",
 };
 
 export interface Programacion {
