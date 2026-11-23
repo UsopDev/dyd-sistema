@@ -5,6 +5,8 @@ import { validar } from "../../lib/validar.js";
 import { siguienteCodigo } from "../../lib/codigos.js";
 import { requireRol } from "../../middleware/auth.js";
 import type { SesionUsuario } from "../../lib/jwt.js";
+import { whereRangoFecha, rangosFechaCampos } from "../../lib/filtros.js";
+import type { EstadoSolicitud, TipoServicio, Prioridad } from "@prisma/client";
 
 export const solicitudesRouter = Router();
 
@@ -46,9 +48,12 @@ const listarSchema = z.object({
   tipo_servicio: tipoSchema.optional(),
   id_maquina: z.uuid().optional(),
   id_cliente: z.uuid().optional(),
+  id_tecnico: z.uuid().optional(),
   pagina: z.coerce.number().int().min(1).default(1),
   limite: z.coerce.number().int().min(1).max(100).default(20),
-});
+}).merge(
+  rangosFechaCampos("fecha_recepcion", "actualizado_en"),
+);
 
 const resumen = {
   maquina: { select: { id_maquina: true, codigo: true, nombre: true } },
@@ -56,15 +61,26 @@ const resumen = {
 } as const;
 
 solicitudesRouter.get("/", async (req, res) => {
-  const filtros = validar(listarSchema, req.query, res);
+  const filtros = validar(listarSchema, req.query, res) as 
+    z.output<typeof listarSchema> & {
+      fecha_recepcion_desde?: string;
+      fecha_recepcion_hasta?: string;
+      actualizado_en_desde?: string;
+      actualizado_en_hasta?: string;
+      pagina: number;
+      limite: number;
+    };
   if (!filtros) return;
 
   const where = {
-    ...(filtros.estado ? { estado: filtros.estado } : {}),
-    ...(filtros.prioridad ? { prioridad: filtros.prioridad } : {}),
-    ...(filtros.tipo_servicio ? { tipo_servicio: filtros.tipo_servicio } : {}),
+    ...(filtros.estado ? { estado: filtros.estado as EstadoSolicitud } : {}),
+    ...(filtros.prioridad ? { prioridad: filtros.prioridad as Prioridad } : {}),
+    ...(filtros.tipo_servicio ? { tipo_servicio: filtros.tipo_servicio as TipoServicio } : {}),
     ...(filtros.id_maquina ? { id_maquina: filtros.id_maquina } : {}),
     ...(filtros.id_cliente ? { id_cliente: filtros.id_cliente } : {}),
+    ...(filtros.id_tecnico ? { id_usuario_registrado: filtros.id_tecnico } : {}),
+    ...whereRangoFecha("fecha_recepcion", filtros.fecha_recepcion_desde, filtros.fecha_recepcion_hasta),
+    ...whereRangoFecha("actualizado_en", filtros.actualizado_en_desde, filtros.actualizado_en_hasta),
     ...(filtros.q
       ? {
           OR: [

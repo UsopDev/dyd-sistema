@@ -83,7 +83,7 @@ function Etiqueta({ estado }: { estado: EstadoOrden }) {
 
 function RegistrarMaterial({ idOrden, alGuardar }: { idOrden: string; alGuardar: () => void }) {
   const [recargaMat, setRecargaMat] = useState(0);
-  const { datos } = useConsulta<{ materiales: Material[] }>("/materiales?limite=100", recargaMat);
+  const { datos } = useConsulta<{ materiales: Material[] }>("/materiales?limite=100", {}, recargaMat);
   const materiales = (datos?.materiales ?? []).filter((m) => m.activo);
   const [idMaterial, setIdMaterial] = useState("");
   const [cantidad, setCantidad] = useState("1");
@@ -248,7 +248,7 @@ function VistaOrden({
   const [recarga, setRecarga] = useState(0);
   const [finalizando, setFinalizando] = useState(false);
   const [errorAccion, setErrorAccion] = useState<string | null>(null);
-  const { datos, error, cargando } = useConsulta<{ orden: Detalle }>(`/ordenes/${id}`, recarga);
+  const { datos, error, cargando } = useConsulta<{ orden: Detalle }>(`/ordenes/${id}`, {}, recarga);
 
   if (error) return <p className="text-red-700">{error}</p>;
   if (cargando || !datos) return <p className="text-slate-500">Cargando...</p>;
@@ -381,22 +381,26 @@ export default function Ordenes() {
   const esAdmin = usuario?.rol === "ADMINISTRADOR";
 
   const [texto, setTexto] = useState("");
-  const [q, setQ] = useState("");
   const [estado, setEstado] = useState("");
+  const [fechaDesde, setFechaDesde] = useState("");
+  const [fechaHasta, setFechaHasta] = useState("");
   const [pagina, setPagina] = useState(1);
   const [recarga, setRecarga] = useState(0);
   const [verId, setVerId] = useState<string | null>(null);
 
-  const params = new URLSearchParams({ pagina: String(pagina), limite: String(LIMITE) });
-  if (q) params.set("q", q);
-  if (estado) params.set("estado", estado);
-
-  const { datos, error, cargando } = useConsulta<Respuesta>(`/ordenes?${params}`, recarga);
+  const { datos, error, cargando } = useConsulta<Respuesta>("/ordenes", {
+    pagina,
+    limite: LIMITE,
+    ...(texto && { q: texto.trim() }),
+    ...(estado && { estado }),
+    ...(fechaDesde && { creado_en_desde: fechaDesde }),
+    ...(fechaHasta && { creado_en_hasta: fechaHasta }),
+  }, recarga);
 
   function buscar(e: SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
     setPagina(1);
-    setQ(texto.trim());
+    setRecarga((n) => n + 1);
   }
 
   return (
@@ -432,9 +436,42 @@ export default function Ordenes() {
             </option>
           ))}
         </select>
-        <button className="rounded border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50">
+        <label className="flex items-center gap-1">
+          <span className="text-[11px] text-slate-500">Desde</span>
+          <input
+            type="date"
+            value={fechaDesde}
+            onChange={(e) => setFechaDesde(e.target.value)}
+            className={`${estiloInput} w-auto`}
+          />
+        </label>
+        <label className="flex items-center gap-1">
+          <span className="text-[11px] text-slate-500">Hasta</span>
+          <input
+            type="date"
+            value={fechaHasta}
+            onChange={(e) => setFechaHasta(e.target.value)}
+            className={`${estiloInput} w-auto`}
+          />
+        </label>
+        <button type="submit" className="rounded border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50">
           Buscar
         </button>
+        {(estado || fechaDesde || fechaHasta) && (
+          <button
+            type="button"
+            onClick={() => {
+              setEstado("");
+              setFechaDesde("");
+              setFechaHasta("");
+              setPagina(1);
+              setRecarga((n) => n + 1);
+            }}
+            className="rounded border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50"
+          >
+            Limpiar
+          </button>
+        )}
       </form>
 
       {error && <p className="text-red-700">{error}</p>}

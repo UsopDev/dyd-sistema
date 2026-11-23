@@ -133,20 +133,24 @@ export default function Clientes() {
   const esAdmin = usuario?.rol === "ADMINISTRADOR";
 
   const [texto, setTexto] = useState("");
-  const [q, setQ] = useState("");
+  const [fechaDesde, setFechaDesde] = useState("");
+  const [fechaHasta, setFechaHasta] = useState("");
   const [pagina, setPagina] = useState(1);
   const [recarga, setRecarga] = useState(0);
   const [editando, setEditando] = useState<Cliente | "nuevo" | null>(null);
 
-  const params = new URLSearchParams({ pagina: String(pagina), limite: String(LIMITE) });
-  if (q) params.set("q", q);
-
-  const { datos, error, cargando } = useConsulta<Respuesta>(`/clientes?${params}`, recarga);
+  const { datos, error, cargando } = useConsulta<Respuesta>("/clientes", {
+    pagina,
+    limite: LIMITE,
+    ...(texto && { q: texto.trim() }),
+    ...(fechaDesde && { creado_en_desde: fechaDesde }),
+    ...(fechaHasta && { creado_en_hasta: fechaHasta }),
+  }, recarga);
 
   function buscar(e: SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
     setPagina(1);
-    setQ(texto.trim());
+    setRecarga((n) => n + 1);
   }
 
   function guardado() {
@@ -168,16 +172,48 @@ export default function Clientes() {
         )}
       </div>
 
-      <form onSubmit={buscar} className="mb-4 flex gap-2">
+      <form onSubmit={buscar} className="mb-4 flex flex-wrap gap-2">
         <input
           value={texto}
           onChange={(e) => setTexto(e.target.value)}
           placeholder="Buscar por razón social, RUC/DNI..."
           className={estiloInput}
         />
-        <button className="rounded border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50">
+        <label className="flex items-center gap-1">
+          <span className="text-[11px] text-slate-500">Desde</span>
+          <input
+            type="date"
+            value={fechaDesde}
+            onChange={(e) => setFechaDesde(e.target.value)}
+            className={`${estiloInput} w-auto`}
+          />
+        </label>
+        <label className="flex items-center gap-1">
+          <span className="text-[11px] text-slate-500">Hasta</span>
+          <input
+            type="date"
+            value={fechaHasta}
+            onChange={(e) => setFechaHasta(e.target.value)}
+            className={`${estiloInput} w-auto`}
+          />
+        </label>
+        <button type="submit" className="rounded border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50">
           Buscar
         </button>
+        {(fechaDesde || fechaHasta) && (
+          <button
+            type="button"
+            onClick={() => {
+              setFechaDesde("");
+              setFechaHasta("");
+              setPagina(1);
+              setRecarga((n) => n + 1);
+            }}
+            className="rounded border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50"
+          >
+            Limpiar
+          </button>
+        )}
       </form>
 
       {error && <p className="text-red-700">{error}</p>}

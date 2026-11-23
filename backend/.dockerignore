@@ -2,11 +2,6 @@
 .gitignore
 node_modules
 dist
-.env
-.env.*
-!.env.example
 uploads
-src/generated
 *.log
 opencode.json
-scripts

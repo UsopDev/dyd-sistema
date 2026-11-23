@@ -290,7 +290,7 @@ function HistorialUso({ recarga }: { recarga: number }) {
     total: number;
     pagina: number;
     limite: number;
-  }>(`/uso?pagina=${pagina}&limite=5`, recarga);
+  }>(`/uso?pagina=${pagina}&limite=5`, {}, recarga);
 
   return (
     <div>
@@ -339,14 +339,19 @@ export default function Preventivo() {
   const esAdmin = usuario?.rol === "ADMINISTRADOR";
 
   const [estado, setEstado] = useState("");
+  const [fechaDesde, setFechaDesde] = useState("");
+  const [fechaHasta, setFechaHasta] = useState("");
   const [recarga, setRecarga] = useState(0);
   const [editando, setEditando] = useState<Programacion | "nueva" | null>(null);
   const [registrando, setRegistrando] = useState(false);
   const [mensaje, setMensaje] = useState<string | null>(null);
   const [errorAccion, setErrorAccion] = useState<string | null>(null);
 
-  const ruta = estado ? `/preventivos?estado=${estado}` : "/preventivos";
-  const { datos, error, cargando } = useConsulta<{ preventivos: Programacion[]; total: number }>(ruta, recarga);
+  const { datos, error, cargando } = useConsulta<{ preventivos: Programacion[]; total: number }>("/preventivos", {
+    ...(estado && { estado }),
+    ...(fechaDesde && { fecha_ultimo_mant_desde: fechaDesde }),
+    ...(fechaHasta && { fecha_ultimo_mant_hasta: fechaHasta }),
+  }, recarga);
 
   function refrescar() {
     setEditando(null);
@@ -398,7 +403,7 @@ export default function Preventivo() {
           </div>
         </div>
 
-        <div className="mb-4">
+        <form className="mb-4 flex flex-wrap gap-2">
           <select
             value={estado}
             onChange={(e) => setEstado(e.target.value)}
@@ -411,7 +416,42 @@ export default function Preventivo() {
               </option>
             ))}
           </select>
-        </div>
+          <label className="flex items-center gap-1">
+            <span className="text-[11px] text-slate-500">Desde</span>
+            <input
+              type="date"
+              value={fechaDesde}
+              onChange={(e) => setFechaDesde(e.target.value)}
+              className={`${estiloInput} w-auto`}
+            />
+          </label>
+          <label className="flex items-center gap-1">
+            <span className="text-[11px] text-slate-500">Hasta</span>
+            <input
+              type="date"
+              value={fechaHasta}
+              onChange={(e) => setFechaHasta(e.target.value)}
+              className={`${estiloInput} w-auto`}
+            />
+          </label>
+          <button type="submit" className="rounded border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50">
+            Buscar
+          </button>
+          {(estado || fechaDesde || fechaHasta) && (
+            <button
+              type="button"
+              onClick={() => {
+                setEstado("");
+                setFechaDesde("");
+                setFechaHasta("");
+                setRecarga((n) => n + 1);
+              }}
+              className="rounded border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50"
+            >
+              Limpiar
+            </button>
+          )}
+        </form>
 
         {mensaje && <p className="mb-3 text-sm text-green-700">{mensaje}</p>}
         {errorAccion && <p className="mb-3 text-sm text-red-700">{errorAccion}</p>}

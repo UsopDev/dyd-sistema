@@ -7,6 +7,8 @@ import { siguienteCodigo } from "../../lib/codigos.js";
 import { aFecha, hoyLocal, sumarDias } from "../../lib/fechas.js";
 import { requireRol } from "../../middleware/auth.js";
 import type { SesionUsuario } from "../../lib/jwt.js";
+import { whereRangoFecha, rangosFechaCampos } from "../../lib/filtros.js";
+import type { EstadoOrden } from "@prisma/client";
 
 export const ordenesRouter = Router();
 
@@ -39,9 +41,14 @@ const listarSchema = z.object({
   estado: estadoSchema.optional(),
   id_tecnico: z.uuid().optional(),
   id_solicitud: z.uuid().optional(),
+  // Filtro por rango de monto
+  monto_min: z.coerce.number().min(0).optional(),
+  monto_max: z.coerce.number().min(0).optional(),
   pagina: z.coerce.number().int().min(1).default(1),
   limite: z.coerce.number().int().min(1).max(100).default(20),
-});
+}).merge(
+  rangosFechaCampos("creado_en", "fecha_inicio", "fecha_fin", "actualizado_en"),
+);
 
 const resumen = {
   solicitud: { select: { id_solicitud: true, codigo: true, estado: true } },
@@ -109,7 +116,19 @@ async function ordenParaOperar(id: string, res: Response) {
 }
 
 ordenesRouter.get("/", async (req, res) => {
-  const filtros = validar(listarSchema, req.query, res);
+  const filtros = validar(listarSchema, req.query, res) as
+    z.output<typeof listarSchema> & {
+      creado_en_desde?: string;
+      creado_en_hasta?: string;
+      fecha_inicio_desde?: string;
+      fecha_inicio_hasta?: string;
+      fecha_fin_desde?: string;
+      fecha_fin_hasta?: string;
+      actualizado_en_desde?: string;
+      actualizado_en_hasta?: string;
+      pagina: number;
+      limite: number;
+    };
   if (!filtros) return;
 
   const sesion = res.locals.sesion as SesionUsuario;
@@ -122,8 +141,20 @@ ordenesRouter.get("/", async (req, res) => {
         ? { id_tecnico: filtros.id_tecnico }
         : {}
       : { id_tecnico: sesion.id }),
-    ...(filtros.estado ? { estado: filtros.estado } : {}),
+    ...(filtros.estado ? { estado: filtros.estado as EstadoOrden } : {}),
     ...(filtros.id_solicitud ? { id_solicitud: filtros.id_solicitud } : {}),
+    ...whereRangoFecha("creado_en", filtros.creado_en_desde, filtros.creado_en_hasta),
+    ...whereRangoFecha("fecha_inicio", filtros.fecha_inicio_desde, filtros.fecha_inicio_hasta),
+    ...whereRangoFecha("fecha_fin", filtros.fecha_fin_desde, filtros.fecha_fin_hasta),
+    ...whereRangoFecha("actualizado_en", filtros.actualizado_en_desde, filtros.actualizado_en_hasta),
+    ...(filtros.monto_min !== undefined || filtros.monto_max !== undefined
+      ? {
+          monto: {
+            ...(filtros.monto_min !== undefined ? { gte: filtros.monto_min } : {}),
+            ...(filtros.monto_max !== undefined ? { lte: filtros.monto_max } : {}),
+          },
+        }
+      : {}),
     ...(filtros.q ? { codigo: { contains: filtros.q, mode: "insensitive" as const } } : {}),
   };
 

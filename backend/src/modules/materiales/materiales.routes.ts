@@ -4,6 +4,7 @@ import { prisma } from "../../lib/prisma.js";
 import { validar } from "../../lib/validar.js";
 import { requireRol } from "../../middleware/auth.js";
 import type { SesionUsuario } from "../../lib/jwt.js";
+import { whereRangoFecha, rangosFechaCampos } from "../../lib/filtros.js";
 
 export const materialesRouter = Router();
 
@@ -34,7 +35,9 @@ const listarSchema = z.object({
   activo: z.enum(["true", "false"]).optional(),
   pagina: z.coerce.number().int().min(1).default(1),
   limite: z.coerce.number().int().min(1).max(100).default(20),
-});
+}).merge(
+  rangosFechaCampos("creado_en", "actualizado_en"),
+);
 
 const paginacionSchema = z.object({
   pagina: z.coerce.number().int().min(1).default(1),
@@ -48,11 +51,21 @@ const movimientoSchema = z.object({
 });
 
 materialesRouter.get("/", async (req, res) => {
-  const filtros = validar(listarSchema, req.query, res);
+  const filtros = validar(listarSchema, req.query, res) as
+    z.output<typeof listarSchema> & {
+      creado_en_desde?: string;
+      creado_en_hasta?: string;
+      actualizado_en_desde?: string;
+      actualizado_en_hasta?: string;
+      pagina: number;
+      limite: number;
+    };
   if (!filtros) return;
 
   const where = {
     ...(filtros.activo ? { activo: filtros.activo === "true" } : {}),
+    ...whereRangoFecha("creado_en", filtros.creado_en_desde, filtros.creado_en_hasta),
+    ...whereRangoFecha("actualizado_en", filtros.actualizado_en_desde, filtros.actualizado_en_hasta),
     ...(filtros.q
       ? {
           OR: [

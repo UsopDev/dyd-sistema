@@ -1,31 +1,21 @@
-# Stack completo del backend: PostgreSQL, Redis y la API.
-# Se ejecuta desde este directorio:
-#   cd backend
-#   docker compose up -d --build
-
-name: dyd-sistema
-
-# Variables compartidas por los servicios que hablan con Postgres y Redis.
-x-backend-environment: &backend-environment
-  DATABASE_URL: postgresql://${POSTGRES_USER:-dyd}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-dyd_db}?schema=public
-  REDIS_URL: redis://redis:6379
-  TZ: America/Lima
+# docker compose up --build
+# Credenciales: user=root, password=postgres, db=dyd_db
 
 services:
   postgres:
-    image: postgres:18
+    image: postgres:17
     container_name: dyd_postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-dyd}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Define POSTGRES_PASSWORD en backend/.env}
-      POSTGRES_DB: ${POSTGRES_DB:-dyd_db}
+      POSTGRES_USER: root
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: dyd_db
     ports:
-      - "127.0.0.1:5433:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql
+      - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-dyd} -d ${POSTGRES_DB:-dyd_db}"]
+      test: ["CMD-SHELL", "pg_isready -U root -d dyd_db"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -44,28 +34,18 @@ services:
       timeout: 5s
       retries: 10
 
-  # Aplica las migraciones de Prisma una vez y termina.
-  migrate:
-    build:
-      context: .
-      target: migrate
-    environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-dyd}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-dyd_db}?schema=public
-    depends_on:
-      postgres:
-        condition: service_healthy
-    restart: "no"
-
   backend:
     build:
       context: .
-      target: runtime
     container_name: dyd_backend
     restart: unless-stopped
     init: true
     env_file:
       - .env
-    environment: *backend-environment
+    environment:
+      DATABASE_URL: postgresql://root:postgres@postgres:5432/dyd_db?schema=public
+      REDIS_URL: redis://redis:6379
+      TZ: America/Lima
     ports:
       - "3000:3000"
     volumes:
@@ -75,26 +55,6 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
-      migrate:
-        condition: service_completed_successfully
-
-  # Servicio opcional para cargar el administrador inicial:
-  #   docker compose --profile tools run --rm seed
-  seed:
-    profiles: ["tools"]
-    build:
-      context: .
-      target: build
-    command: ["./node_modules/.bin/tsx", "prisma/seed.ts"]
-    env_file:
-      - .env
-    environment: *backend-environment
-    depends_on:
-      postgres:
-        condition: service_healthy
-      migrate:
-        condition: service_completed_successfully
-    restart: "no"
 
 volumes:
   postgres_data:

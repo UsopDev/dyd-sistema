@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router";
 import { api } from "../lib/api";
 import { useAuth } from "../auth/useAuth";
-import { useResumenDashboard } from "../lib/useResumenDashboard";
+import { useResumenDashboard, type FiltrosDashboardType } from "../lib/useResumenDashboard";
 import AlertasPreventivo from "../components/AlertasPreventivo";
 import Tarjeta from "../components/dashboard/Tarjeta";
 import Kpi from "../components/dashboard/Kpi";
@@ -11,6 +11,7 @@ import DonutEstados, { type Segmento } from "../components/dashboard/DonutEstado
 import MedidorGauge from "../components/dashboard/MedidorGauge";
 import BarrasComparativas from "../components/dashboard/BarrasComparativas";
 import TablaBarras from "../components/dashboard/TablaBarras";
+import FiltrosDashboard from "../components/dashboard/FiltrosDashboard";
 import {
   COLORES_ESTADO,
   ESTADOS_ORDEN,
@@ -102,7 +103,8 @@ function EnviarAlertas() {
 export default function Inicio() {
   const { usuario } = useAuth();
   const esAdmin = usuario?.rol === "ADMINISTRADOR";
-  const { datos, cargando, refrescar } = useResumenDashboard();
+  const [filtros, setFiltros] = useState<FiltrosDashboardType>({});
+  const { datos, cargando, refrescar } = useResumenDashboard(filtros);
 
   const totalSolicitudes = datos
     ? SOLICITUDES.reduce((suma, e) => suma + datos.solicitudes[e], 0)
@@ -156,6 +158,9 @@ export default function Inicio() {
         </div>
         <p className="text-[11px] text-slate-400">Actualizado a las {horaActualizacion}</p>
       </div>
+
+      {/* Filtros de fechas */}
+      <FiltrosDashboard valores={filtros} onChange={setFiltros} />
 
       <div className="grid grid-cols-12 gap-4">
         {/* Resumen */}

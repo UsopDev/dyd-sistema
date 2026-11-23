@@ -244,7 +244,7 @@ function VistaDetalle({
   const [recarga, setRecarga] = useState(0);
   const [editando, setEditando] = useState(false);
   const [errorAccion, setErrorAccion] = useState<string | null>(null);
-  const { datos, error, cargando } = useConsulta<{ solicitud: Detalle }>(`/solicitudes/${id}`, recarga);
+  const { datos, error, cargando } = useConsulta<{ solicitud: Detalle }>(`/solicitudes/${id}`, {}, recarga);
 
   if (error) return <p className="text-red-700">{error}</p>;
   if (cargando || !datos) return <p className="text-slate-500">Cargando...</p>;
@@ -335,23 +335,29 @@ export default function Solicitudes() {
   const [estado, setEstado] = useState("");
   const [prioridad, setPrioridad] = useState("");
   const [tipo, setTipo] = useState("");
+  const [fechaDesde, setFechaDesde] = useState("");
+  const [fechaHasta, setFechaHasta] = useState("");
   const [pagina, setPagina] = useState(1);
   const [recarga, setRecarga] = useState(0);
   const [nueva, setNueva] = useState(false);
   const [verId, setVerId] = useState<string | null>(null);
 
-  const params = new URLSearchParams({ pagina: String(pagina), limite: String(LIMITE) });
-  if (q) params.set("q", q);
-  if (estado) params.set("estado", estado);
-  if (prioridad) params.set("prioridad", prioridad);
-  if (tipo) params.set("tipo_servicio", tipo);
-
-  const { datos, error, cargando } = useConsulta<Respuesta>(`/solicitudes?${params}`, recarga);
+  const { datos, error, cargando } = useConsulta<Respuesta>("/solicitudes", {
+    pagina,
+    limite: LIMITE,
+    ...(q && { q }),
+    ...(estado && { estado }),
+    ...(prioridad && { prioridad }),
+    ...(tipo && { tipo_servicio: tipo }),
+    ...(fechaDesde && { fecha_recepcion_desde: fechaDesde }),
+    ...(fechaHasta && { fecha_recepcion_hasta: fechaHasta }),
+  }, recarga);
 
   function buscar(e: SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
     setPagina(1);
     setQ(texto.trim());
+    setRecarga((n) => n + 1);
   }
 
   const filtro = (valor: string, cambiar: (v: string) => void, todos: string, opciones: Record<string, string>) => (
@@ -394,9 +400,44 @@ export default function Solicitudes() {
         {filtro(estado, setEstado, "Todos los estados", ESTADOS_SOLICITUD)}
         {filtro(prioridad, setPrioridad, "Toda prioridad", PRIORIDADES)}
         {filtro(tipo, setTipo, "Todo tipo", TIPOS_SERVICIO)}
-        <button className="rounded border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50">
+        <label className="flex items-center gap-1">
+          <span className="text-[11px] text-slate-500">Desde</span>
+          <input
+            type="date"
+            value={fechaDesde}
+            onChange={(e) => setFechaDesde(e.target.value)}
+            className={`${estiloInput} w-auto`}
+          />
+        </label>
+        <label className="flex items-center gap-1">
+          <span className="text-[11px] text-slate-500">Hasta</span>
+          <input
+            type="date"
+            value={fechaHasta}
+            onChange={(e) => setFechaHasta(e.target.value)}
+            className={`${estiloInput} w-auto`}
+          />
+        </label>
+        <button type="submit" className="rounded border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50">
           Buscar
         </button>
+        {(estado || prioridad || tipo || fechaDesde || fechaHasta) && (
+          <button
+            type="button"
+            onClick={() => {
+              setEstado("");
+              setPrioridad("");
+              setTipo("");
+              setFechaDesde("");
+              setFechaHasta("");
+              setPagina(1);
+              setRecarga((n) => n + 1);
+            }}
+            className="rounded border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50"
+          >
+            Limpiar
+          </button>
+        )}
       </form>
 
       {error && <p className="text-red-700">{error}</p>}

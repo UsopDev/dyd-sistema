@@ -4,6 +4,7 @@ import { prisma } from "../../lib/prisma.js";
 import { validar } from "../../lib/validar.js";
 import { aFecha, hoyLocal, sumarDias } from "../../lib/fechas.js";
 import { requireRol } from "../../middleware/auth.js";
+import { whereRangoFecha, whereRangoFechaDia, rangosFechaCampos } from "../../lib/filtros.js";
 
 export const preventivosRouter = Router();
 
@@ -40,7 +41,12 @@ const listarSchema = z.object({
   id_maquina: z.uuid().optional(),
   activo: z.enum(["true", "false"]).optional(),
   estado: estadoSchema.optional(),
-});
+  // Shortcuts para estado calculado
+  vencido: z.enum(["true", "false"]).optional(),
+  proximo_dias: z.coerce.number().int().positive().optional(),
+}).merge(
+  rangosFechaCampos("fecha_ultimo_mant", "proximo_mant", "creado_en"),
+);
 
 const alertasSchema = z.object({ id_maquina: z.uuid().optional() });
 
@@ -110,17 +116,43 @@ export async function cargar(where: { id_maquina?: string; activo?: boolean }) {
 const PESO = { VENCIDO: 0, PROXIMO: 1, AL_DIA: 2 } as const;
 
 preventivosRouter.get("/", async (req, res) => {
-  const filtros = validar(listarSchema, req.query, res);
+  const filtros = validar(listarSchema, req.query, res) as
+    z.output<typeof listarSchema> & {
+      fecha_ultimo_mant_desde?: string;
+      fecha_ultimo_mant_hasta?: string;
+      proximo_mant_desde?: string;
+      proximo_mant_hasta?: string;
+      creado_en_desde?: string;
+      creado_en_hasta?: string;
+      pagina: number;
+      limite: number;
+    };
   if (!filtros) return;
 
   const todas = await cargar({
     ...(filtros.id_maquina ? { id_maquina: filtros.id_maquina } : {}),
     ...(filtros.activo ? { activo: filtros.activo === "true" } : {}),
+    ...whereRangoFechaDia("fecha_ultimo_mant", filtros.fecha_ultimo_mant_desde, filtros.fecha_ultimo_mant_hasta),
+    ...whereRangoFechaDia("proximo_mant", filtros.proximo_mant_desde, filtros.proximo_mant_hasta),
+    ...whereRangoFecha("creado_en", filtros.creado_en_desde, filtros.creado_en_hasta),
   });
 
-  const preventivos = filtros.estado
+  let preventivos = filtros.estado
     ? todas.filter((p) => p.estado_mantenimiento.estado === filtros.estado)
     : todas;
+
+  // Filtros adicionales por estado calculado
+  if (filtros.vencido === "true") {
+    preventivos = preventivos.filter((p) => p.estado_mantenimiento.estado === "VENCIDO");
+  }
+  if (filtros.proximo_dias) {
+    const diasLimite = Number(filtros.proximo_dias);
+    preventivos = preventivos.filter(
+      (p) =>
+        p.estado_mantenimiento.estado === "PROXIMO" &&
+        (p.estado_mantenimiento.dias_restantes ?? Infinity) <= diasLimite,
+    );
+  }
 
   res.json({ preventivos, total: preventivos.length });
 });

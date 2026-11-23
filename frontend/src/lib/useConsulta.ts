@@ -7,10 +7,25 @@ interface Estado<T> {
   error?: string;
 }
 
-// Consulta GET que se repite cuando cambia la ruta o el contador de recarga.
-// "cargando" se deduce de la clave: así no se llama a setState de forma síncrona en el efecto.
-export function useConsulta<T>(ruta: string, recarga = 0) {
+/**
+ * Hook para consultas GET con soporte de filtros.
+ *
+ * @param baseRuta - Ruta base del endpoint (ej: "/solicitudes")
+ * @param filtros - Objeto con parámetros de query (se omiten undefined/empty)
+ * @param recarga - Contador para forzar recarga manual
+ */
+export function useConsulta<T>(
+  baseRuta: string,
+  filtros: Record<string, string | number | boolean | undefined> = {},
+  recarga = 0,
+) {
+  const query = new URLSearchParams();
+  Object.entries(filtros).forEach(([k, v]) => {
+    if (v !== undefined && v !== "") query.set(k, String(v));
+  });
+  const ruta = query.toString() ? `${baseRuta}?${query.toString()}` : baseRuta;
   const clave = `${ruta}|${recarga}`;
+
   const [estado, setEstado] = useState<Estado<T> | null>(null);
 
   useEffect(() => {

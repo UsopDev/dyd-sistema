@@ -173,9 +173,18 @@ function ListaUsuarios() {
   const { usuario: yo } = useAuth();
   const [recarga, setRecarga] = useState(0);
   const [verInactivos, setVerInactivos] = useState(false);
+  const [rol, setRol] = useState("");
+  const [activo, setActivo] = useState("");
+  const [fechaDesde, setFechaDesde] = useState("");
+  const [fechaHasta, setFechaHasta] = useState("");
   const [editando, setEditando] = useState<Usuario | "nuevo" | null>(null);
 
-  const { datos, error, cargando } = useConsulta<{ usuarios: Usuario[] }>("/usuarios", recarga);
+  const { datos, error, cargando } = useConsulta<{ usuarios: Usuario[] }>("/usuarios", {
+    ...(rol && { rol }),
+    ...(activo && { activo }),
+    ...(fechaDesde && { creado_en_desde: fechaDesde }),
+    ...(fechaHasta && { creado_en_hasta: fechaHasta }),
+  }, recarga);
 
   const usuarios = (datos?.usuarios ?? []).filter((u) => verInactivos || u.activo);
 
@@ -195,6 +204,66 @@ function ListaUsuarios() {
           Nuevo usuario
         </button>
       </div>
+
+      <form className="mb-4 flex flex-wrap gap-2">
+        <select
+          value={rol}
+          onChange={(e) => setRol(e.target.value)}
+          className="rounded border border-slate-300 px-3 py-2"
+        >
+          <option value="">Todos los roles</option>
+          {Object.entries(ROLES).map(([valor, nombre]) => (
+            <option key={valor} value={valor}>
+              {nombre}
+            </option>
+          ))}
+        </select>
+        <select
+          value={activo}
+          onChange={(e) => setActivo(e.target.value)}
+          className="rounded border border-slate-300 px-3 py-2"
+        >
+          <option value="">Todos</option>
+          <option value="true">Activos</option>
+          <option value="false">Inactivos</option>
+        </select>
+        <label className="flex items-center gap-1">
+          <span className="text-[11px] text-slate-500">Desde</span>
+          <input
+            type="date"
+            value={fechaDesde}
+            onChange={(e) => setFechaDesde(e.target.value)}
+            className={`${estiloInput} w-auto`}
+          />
+        </label>
+        <label className="flex items-center gap-1">
+          <span className="text-[11px] text-slate-500">Hasta</span>
+          <input
+            type="date"
+            value={fechaHasta}
+            onChange={(e) => setFechaHasta(e.target.value)}
+            className={`${estiloInput} w-auto`}
+          />
+        </label>
+        <button type="submit" className="rounded border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50">
+          Buscar
+        </button>
+        {(rol || activo || fechaDesde || fechaHasta) && (
+          <button
+            type="button"
+            onClick={() => {
+              setRol("");
+              setActivo("");
+              setFechaDesde("");
+              setFechaHasta("");
+              setRecarga((n) => n + 1);
+            }}
+            className="rounded border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50"
+          >
+            Limpiar
+          </button>
+        )}
+      </form>
 
       <label className="mb-4 flex items-center gap-2 text-sm text-slate-700">
         <input type="checkbox" checked={verInactivos} onChange={(e) => setVerInactivos(e.target.checked)} />

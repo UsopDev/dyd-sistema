@@ -4,6 +4,7 @@ import { prisma } from "../../lib/prisma.js";
 import { validar } from "../../lib/validar.js";
 import { siguienteCodigo } from "../../lib/codigos.js";
 import type { SesionUsuario } from "../../lib/jwt.js";
+import { whereRangoFecha, rangosFechaCampos } from "../../lib/filtros.js";
 
 export const cotizacionesRouter = Router();
 
@@ -44,9 +45,14 @@ const crearSchema = z.object({
 const listarSchema = z.object({
   id_solicitud: z.uuid().optional(),
   q: z.string().trim().max(50).optional(),
+  // Filtro por rango de total
+  total_min: z.coerce.number().min(0).optional(),
+  total_max: z.coerce.number().min(0).optional(),
   pagina: z.coerce.number().int().min(1).default(1),
   limite: z.coerce.number().int().min(1).max(100).default(20),
-});
+}).merge(
+  rangosFechaCampos("fecha", "actualizado_en"),
+);
 
 const resumen = {
   solicitud: { select: { id_solicitud: true, codigo: true, estado: true } },
@@ -81,11 +87,29 @@ interface Linea {
 }
 
 cotizacionesRouter.get("/", async (req, res) => {
-  const filtros = validar(listarSchema, req.query, res);
+  const filtros = validar(listarSchema, req.query, res) as
+    z.output<typeof listarSchema> & {
+      fecha_desde?: string;
+      fecha_hasta?: string;
+      actualizado_en_desde?: string;
+      actualizado_en_hasta?: string;
+      pagina: number;
+      limite: number;
+    };
   if (!filtros) return;
 
   const where = {
     ...(filtros.id_solicitud ? { id_solicitud: filtros.id_solicitud } : {}),
+    ...whereRangoFecha("fecha", filtros.fecha_desde, filtros.fecha_hasta),
+    ...whereRangoFecha("actualizado_en", filtros.actualizado_en_desde, filtros.actualizado_en_hasta),
+    ...(filtros.total_min !== undefined || filtros.total_max !== undefined
+      ? {
+          total: {
+            ...(filtros.total_min !== undefined ? { gte: filtros.total_min } : {}),
+            ...(filtros.total_max !== undefined ? { lte: filtros.total_max } : {}),
+          },
+        }
+      : {}),
     ...(filtros.q ? { codigo: { contains: filtros.q, mode: "insensitive" as const } } : {}),
   };
 

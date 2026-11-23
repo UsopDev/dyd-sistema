@@ -338,28 +338,33 @@ export default function Materiales() {
   const esAdmin = usuario?.rol === "ADMINISTRADOR";
 
   const [texto, setTexto] = useState("");
-  const [q, setQ] = useState("");
   const [activo, setActivo] = useState("");
+  const [fechaDesde, setFechaDesde] = useState("");
+  const [fechaHasta, setFechaHasta] = useState("");
   const [pagina, setPagina] = useState(1);
   const [recarga, setRecarga] = useState(0);
   const [editando, setEditando] = useState<Material | "nuevo" | null>(null);
   const [moviendo, setMoviendo] = useState<Material | null>(null);
   const [viendo, setViendo] = useState<Material | null>(null);
 
-  const params = new URLSearchParams({ pagina: String(pagina), limite: String(LIMITE) });
-  if (q) params.set("q", q);
-  if (activo) params.set("activo", activo);
-
-  const { datos, error, cargando } = useConsulta<Respuesta>(`/materiales?${params}`, recarga);
+  const { datos, error, cargando } = useConsulta<Respuesta>("/materiales", {
+    pagina,
+    limite: LIMITE,
+    ...(texto && { q: texto.trim() }),
+    ...(activo && { activo }),
+    ...(fechaDesde && { creado_en_desde: fechaDesde }),
+    ...(fechaHasta && { creado_en_hasta: fechaHasta }),
+  }, recarga);
   const { datos: bajos } = useConsulta<{ materiales: { id_material: string; nombre: string }[]; total: number }>(
     "/materiales/stock-bajo",
+    {},
     recarga,
   );
 
   function buscar(e: SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
     setPagina(1);
-    setQ(texto.trim());
+    setRecarga((n) => n + 1);
   }
 
   function refrescar() {
@@ -407,7 +412,42 @@ export default function Materiales() {
           <option value="true">Activos</option>
           <option value="false">Inactivos</option>
         </select>
-        <button className="rounded border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50">Buscar</button>
+        <label className="flex items-center gap-1">
+          <span className="text-[11px] text-slate-500">Desde</span>
+          <input
+            type="date"
+            value={fechaDesde}
+            onChange={(e) => setFechaDesde(e.target.value)}
+            className={`${estiloInput} w-auto`}
+          />
+        </label>
+        <label className="flex items-center gap-1">
+          <span className="text-[11px] text-slate-500">Hasta</span>
+          <input
+            type="date"
+            value={fechaHasta}
+            onChange={(e) => setFechaHasta(e.target.value)}
+            className={`${estiloInput} w-auto`}
+          />
+        </label>
+        <button type="submit" className="rounded border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50">
+          Buscar
+        </button>
+        {(activo || fechaDesde || fechaHasta) && (
+          <button
+            type="button"
+            onClick={() => {
+              setActivo("");
+              setFechaDesde("");
+              setFechaHasta("");
+              setPagina(1);
+              setRecarga((n) => n + 1);
+            }}
+            className="rounded border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50"
+          >
+            Limpiar
+          </button>
+        )}
       </form>
 
       {error && <p className="text-red-700">{error}</p>}

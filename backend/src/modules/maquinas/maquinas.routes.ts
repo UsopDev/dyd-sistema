@@ -4,6 +4,8 @@ import { z } from "zod";
 import { prisma } from "../../lib/prisma.js";
 import { validar } from "../../lib/validar.js";
 import { requireRol } from "../../middleware/auth.js";
+import { whereRangoFecha, rangosFechaCampos } from "../../lib/filtros.js";
+import type { EstadoMaquina } from "@prisma/client";
 
 export const maquinasRouter = Router();
 
@@ -38,9 +40,14 @@ const listarSchema = z.object({
   estado: estadoSchema.optional(),
   id_cliente: z.uuid().optional(),
   es_propia: z.enum(["true", "false"]).optional(),
+  // Filtro por rango de horas de uso
+  horas_min: z.coerce.number().int().min(0).optional(),
+  horas_max: z.coerce.number().int().min(0).optional(),
   pagina: z.coerce.number().int().min(1).default(1),
   limite: z.coerce.number().int().min(1).max(100).default(20),
-});
+}).merge(
+  rangosFechaCampos("creado_en", "actualizado_en"),
+);
 
 const clienteResumen = { select: { id_cliente: true, razon_social: true } } as const;
 
@@ -80,13 +87,31 @@ async function validarPropiedad(
 }
 
 maquinasRouter.get("/", async (req, res) => {
-  const filtros = validar(listarSchema, req.query, res);
+  const filtros = validar(listarSchema, req.query, res) as
+    z.output<typeof listarSchema> & {
+      creado_en_desde?: string;
+      creado_en_hasta?: string;
+      actualizado_en_desde?: string;
+      actualizado_en_hasta?: string;
+      pagina: number;
+      limite: number;
+    };
   if (!filtros) return;
 
   const where = {
-    ...(filtros.estado ? { estado: filtros.estado } : {}),
+    ...(filtros.estado ? { estado: filtros.estado as EstadoMaquina } : {}),
     ...(filtros.id_cliente ? { id_cliente: filtros.id_cliente } : {}),
     ...(filtros.es_propia ? { es_propia: filtros.es_propia === "true" } : {}),
+    ...whereRangoFecha("creado_en", filtros.creado_en_desde, filtros.creado_en_hasta),
+    ...whereRangoFecha("actualizado_en", filtros.actualizado_en_desde, filtros.actualizado_en_hasta),
+    ...(filtros.horas_min !== undefined || filtros.horas_max !== undefined
+      ? {
+          horas_uso: {
+            ...(filtros.horas_min !== undefined ? { gte: filtros.horas_min } : {}),
+            ...(filtros.horas_max !== undefined ? { lte: filtros.horas_max } : {}),
+          },
+        }
+      : {}),
     ...(filtros.q
       ? {
           OR: [

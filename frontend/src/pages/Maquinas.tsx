@@ -210,22 +210,30 @@ export default function Maquinas() {
   const esAdmin = usuario?.rol === "ADMINISTRADOR";
 
   const [texto, setTexto] = useState("");
-  const [q, setQ] = useState("");
   const [estado, setEstado] = useState("");
+  const [fechaDesde, setFechaDesde] = useState("");
+  const [fechaHasta, setFechaHasta] = useState("");
+  const [horasMin, setHorasMin] = useState("");
+  const [horasMax, setHorasMax] = useState("");
   const [pagina, setPagina] = useState(1);
   const [recarga, setRecarga] = useState(0);
   const [editando, setEditando] = useState<Maquina | "nueva" | null>(null);
 
-  const params = new URLSearchParams({ pagina: String(pagina), limite: String(LIMITE) });
-  if (q) params.set("q", q);
-  if (estado) params.set("estado", estado);
-
-  const { datos, error, cargando } = useConsulta<Respuesta>(`/maquinas?${params}`, recarga);
+  const { datos, error, cargando } = useConsulta<Respuesta>("/maquinas", {
+    pagina,
+    limite: LIMITE,
+    ...(texto && { q: texto.trim() }),
+    ...(estado && { estado }),
+    ...(fechaDesde && { creado_en_desde: fechaDesde }),
+    ...(fechaHasta && { creado_en_hasta: fechaHasta }),
+    ...(horasMin && { horas_min: Number(horasMin) }),
+    ...(horasMax && { horas_max: Number(horasMax) }),
+  }, recarga);
 
   function buscar(e: SyntheticEvent<HTMLFormElement>) {
     e.preventDefault();
     setPagina(1);
-    setQ(texto.trim());
+    setRecarga((n) => n + 1);
   }
 
   function guardado() {
@@ -269,9 +277,64 @@ export default function Maquinas() {
             </option>
           ))}
         </select>
-        <button className="rounded border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50">
+        <label className="flex items-center gap-1">
+          <span className="text-[11px] text-slate-500">Desde</span>
+          <input
+            type="date"
+            value={fechaDesde}
+            onChange={(e) => setFechaDesde(e.target.value)}
+            className={`${estiloInput} w-auto`}
+          />
+        </label>
+        <label className="flex items-center gap-1">
+          <span className="text-[11px] text-slate-500">Hasta</span>
+          <input
+            type="date"
+            value={fechaHasta}
+            onChange={(e) => setFechaHasta(e.target.value)}
+            className={`${estiloInput} w-auto`}
+          />
+        </label>
+        <label className="flex items-center gap-1">
+          <span className="text-[11px] text-slate-500">Horas mín</span>
+          <input
+            type="number"
+            min="0"
+            value={horasMin}
+            onChange={(e) => setHorasMin(e.target.value)}
+            className={`${estiloInput} w-[80px]`}
+          />
+        </label>
+        <label className="flex items-center gap-1">
+          <span className="text-[11px] text-slate-500">Horas máx</span>
+          <input
+            type="number"
+            min="0"
+            value={horasMax}
+            onChange={(e) => setHorasMax(e.target.value)}
+            className={`${estiloInput} w-[80px]`}
+          />
+        </label>
+        <button type="submit" className="rounded border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50">
           Buscar
         </button>
+        {(estado || fechaDesde || fechaHasta || horasMin || horasMax) && (
+          <button
+            type="button"
+            onClick={() => {
+              setEstado("");
+              setFechaDesde("");
+              setFechaHasta("");
+              setHorasMin("");
+              setHorasMax("");
+              setPagina(1);
+              setRecarga((n) => n + 1);
+            }}
+            className="rounded border border-slate-300 px-4 py-2 text-sm hover:bg-slate-50"
+          >
+            Limpiar
+          </button>
+        )}
       </form>
 
       {error && <p className="text-red-700">{error}</p>}

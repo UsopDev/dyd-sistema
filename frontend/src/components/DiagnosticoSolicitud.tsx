@@ -245,6 +245,7 @@ function VerDiagnostico({
   const [editando, setEditando] = useState(false);
   const { datos, error, cargando } = useConsulta<{ diagnostico: Diagnostico }>(
     `/diagnosticos/${id}`,
+    {},
     recarga,
   );
 

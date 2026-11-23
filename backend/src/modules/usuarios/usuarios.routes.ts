@@ -4,6 +4,8 @@ import { prisma } from "../../lib/prisma.js";
 import { hashPassword } from "../../lib/passwords.js";
 import { validar } from "../../lib/validar.js";
 import type { SesionUsuario } from "../../lib/jwt.js";
+import { whereRangoFecha, rangosFechaCampos } from "../../lib/filtros.js";
+import type { RolUsuario } from "@prisma/client";
 
 export const usuariosRouter = Router();
 
@@ -40,12 +42,56 @@ const actualizarSchema = z
   })
   .refine((datos) => Object.keys(datos).length > 0, { message: "Envía al menos un campo" });
 
-usuariosRouter.get("/", async (_req, res) => {
-  const usuarios = await prisma.usuario.findMany({
-    select: seleccion,
-    orderBy: { creado_en: "asc" },
-  });
-  res.json({ usuarios });
+const listarSchema = z.object({
+  q: z.string().trim().max(100).optional(),
+  rol: rolSchema.optional(),
+  activo: z.enum(["true", "false"]).optional(),
+  pagina: z.coerce.number().int().min(1).default(1),
+  limite: z.coerce.number().int().min(1).max(100).default(20),
+}).merge(
+  rangosFechaCampos("creado_en", "actualizado_en"),
+);
+
+usuariosRouter.get("/", async (req, res) => {
+  const filtros = validar(listarSchema, req.query, res) as
+    z.output<typeof listarSchema> & {
+      creado_en_desde?: string;
+      creado_en_hasta?: string;
+      actualizado_en_desde?: string;
+      actualizado_en_hasta?: string;
+      pagina: number;
+      limite: number;
+    };
+  if (!filtros) return;
+
+  const where = {
+    ...(filtros.rol ? { rol: filtros.rol as RolUsuario } : {}),
+    ...(filtros.activo ? { activo: filtros.activo === "true" } : {}),
+    ...whereRangoFecha("creado_en", filtros.creado_en_desde, filtros.creado_en_hasta),
+    ...whereRangoFecha("actualizado_en", filtros.actualizado_en_desde, filtros.actualizado_en_hasta),
+    ...(filtros.q
+      ? {
+          OR: [
+            { nombres: { contains: filtros.q, mode: "insensitive" as const } },
+            { apellidos: { contains: filtros.q, mode: "insensitive" as const } },
+            { email: { contains: filtros.q, mode: "insensitive" as const } },
+          ],
+        }
+      : {}),
+  };
+
+  const [usuarios, total] = await Promise.all([
+    prisma.usuario.findMany({
+      where,
+      select: seleccion,
+      orderBy: { creado_en: "asc" },
+      skip: (filtros.pagina - 1) * filtros.limite,
+      take: filtros.limite,
+    }),
+    prisma.usuario.count({ where }),
+  ]);
+
+  res.json({ usuarios, total, pagina: filtros.pagina, limite: filtros.limite });
 });
 
 usuariosRouter.post("/", async (req, res) => {

@@ -40,6 +40,15 @@ export interface ResumenDashboard {
   prioritarias: SolicitudResumen[];
 }
 
+export interface FiltrosDashboardType {
+  /** Rango de fechas para solicitudes */
+  fecha_recepcion_desde?: string;
+  fecha_recepcion_hasta?: string;
+  /** Rango de fechas para órdenes */
+  creado_en_desde?: string;
+  creado_en_hasta?: string;
+}
+
 const ESTADOS_SOLICITUD: EstadoSolicitud[] = [
   "RECIBIDA",
   "EN_DIAGNOSTICO",
@@ -57,8 +66,8 @@ type Resultado<T> = { ok: true; valor: T } | { ok: false };
 async function pedir<T>(ruta: string): Promise<Resultado<T>> {
   try {
     return { ok: true, valor: await api<T>(ruta) };
-  } catch {
-    // Un endpoint caído no debe dejar el resto del dashboard en blanco.
+  } catch (error) {
+    console.warn(`No se pudo cargar ${ruta}`, error);
     return { ok: false };
   }
 }
@@ -76,7 +85,17 @@ function totalDe<T extends Record<string, number>>(
   return conteo as T;
 }
 
-export function useResumenDashboard() {
+function buildQuery(base: string, params: Record<string, string | number | undefined>): string {
+  const search = new URLSearchParams();
+  Object.entries(params).forEach(([k, v]) => {
+    if (v !== undefined && v !== "") search.set(k, String(v));
+  });
+  const qs = search.toString();
+  if (!qs) return base;
+  return `${base}${base.includes("?") ? "&" : "?"}${qs}`;
+}
+
+export function useResumenDashboard(filtros: FiltrosDashboardType = {}) {
   const [datos, setDatos] = useState<ResumenDashboard | null>(null);
   const [cargando, setCargando] = useState(true);
   const [recarga, setRecarga] = useState(0);
@@ -88,6 +107,17 @@ export function useResumenDashboard() {
     setCargando(true);
 
     async function cargar() {
+      const paramsSolicitudes = {
+        limite: 1,
+        ...(filtros.fecha_recepcion_desde && { fecha_recepcion_desde: filtros.fecha_recepcion_desde }),
+        ...(filtros.fecha_recepcion_hasta && { fecha_recepcion_hasta: filtros.fecha_recepcion_hasta }),
+      };
+      const paramsOrdenes = {
+        limite: 1,
+        ...(filtros.creado_en_desde && { creado_en_desde: filtros.creado_en_desde }),
+        ...(filtros.creado_en_hasta && { creado_en_hasta: filtros.creado_en_hasta }),
+      };
+
       const [
         solicitudes,
         ordenes,
@@ -99,10 +129,14 @@ export function useResumenDashboard() {
         prioritarias,
       ] = await Promise.all([
         Promise.all(
-          ESTADOS_SOLICITUD.map((e) => pedir<{ total: number }>(`/solicitudes?estado=${e}&limite=1`)),
+          ESTADOS_SOLICITUD.map((e) =>
+            pedir<{ total: number }>(buildQuery("/solicitudes", { ...paramsSolicitudes, estado: e })),
+          ),
         ),
         Promise.all(
-          ESTADOS_ORDEN.map((e) => pedir<{ total: number }>(`/ordenes?estado=${e}&limite=1`)),
+          ESTADOS_ORDEN.map((e) =>
+            pedir<{ total: number }>(buildQuery("/ordenes", { ...paramsOrdenes, estado: e })),
+          ),
         ),
         pedir<{ materiales: MaterialBajo[] }>("/materiales/stock-bajo"),
         pedir<{ preventivos: Programacion[] }>("/preventivos/alertas"),
@@ -148,7 +182,7 @@ export function useResumenDashboard() {
     return () => {
       activo = false;
     };
-  }, [recarga]);
+  }, [recarga, filtros.fecha_recepcion_desde, filtros.fecha_recepcion_hasta, filtros.creado_en_desde, filtros.creado_en_hasta]);
 
   return { datos, cargando, refrescar };
 }

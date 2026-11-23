@@ -1,6 +1,6 @@
 import type { TooltipContentProps } from "recharts";
 
-interface Props extends TooltipContentProps {
+interface Props extends Partial<TooltipContentProps> {
   /** Sufijo de unidad que se muestra junto al valor: "unidades", "órdenes", etc. */
   sufijo?: string;
 }

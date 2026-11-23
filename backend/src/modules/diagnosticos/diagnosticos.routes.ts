@@ -4,6 +4,8 @@ import { prisma } from "../../lib/prisma.js";
 import { validar } from "../../lib/validar.js";
 import type { SesionUsuario } from "../../lib/jwt.js";
 import { adjuntosRouter } from "./adjuntos.routes.js";
+import { whereRangoFecha, rangosFechaCampos } from "../../lib/filtros.js";
+import type { EstadoGeneral } from "@prisma/client";
 
 export const diagnosticosRouter = Router();
 
@@ -35,7 +37,9 @@ const listarSchema = z.object({
   estado_general: estadoGeneralSchema.optional(),
   pagina: z.coerce.number().int().min(1).default(1),
   limite: z.coerce.number().int().min(1).max(100).default(20),
-});
+}).merge(
+  rangosFechaCampos("fecha", "actualizado_en"),
+);
 
 const resumen = {
   solicitud: { select: { id_solicitud: true, codigo: true, estado: true } },
@@ -44,14 +48,24 @@ const resumen = {
 } as const;
 
 diagnosticosRouter.get("/", async (req, res) => {
-  const filtros = validar(listarSchema, req.query, res);
+  const filtros = validar(listarSchema, req.query, res) as
+    z.output<typeof listarSchema> & {
+      fecha_desde?: string;
+      fecha_hasta?: string;
+      actualizado_en_desde?: string;
+      actualizado_en_hasta?: string;
+      pagina: number;
+      limite: number;
+    };
   if (!filtros) return;
 
   const where = {
     ...(filtros.id_solicitud ? { id_solicitud: filtros.id_solicitud } : {}),
     ...(filtros.id_maquina ? { id_maquina: filtros.id_maquina } : {}),
     ...(filtros.id_tecnico ? { id_tecnico: filtros.id_tecnico } : {}),
-    ...(filtros.estado_general ? { estado_general: filtros.estado_general } : {}),
+    ...(filtros.estado_general ? { estado_general: filtros.estado_general as EstadoGeneral } : {}),
+    ...whereRangoFecha("fecha", filtros.fecha_desde, filtros.fecha_hasta),
+    ...whereRangoFecha("actualizado_en", filtros.actualizado_en_desde, filtros.actualizado_en_hasta),
   };
 
   const [diagnosticos, total] = await Promise.all([
