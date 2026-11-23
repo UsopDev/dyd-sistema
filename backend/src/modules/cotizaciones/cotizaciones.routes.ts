@@ -1,12 +1,15 @@
-import { Router } from "express";
+import { Router, type Response } from "express";
 import { z } from "zod";
 import { prisma } from "../../lib/prisma.js";
 import { validar } from "../../lib/validar.js";
 import { siguienteCodigo } from "../../lib/codigos.js";
+import { requireRol } from "../../middleware/auth.js";
 import type { SesionUsuario } from "../../lib/jwt.js";
 import { whereRangoFecha, rangosFechaCampos } from "../../lib/filtros.js";
 
 export const cotizacionesRouter = Router();
+
+const soloAdmin = requireRol("ADMINISTRADOR");
 
 const MAXIMO = 99999999.99;
 
@@ -42,10 +45,16 @@ const crearSchema = z.object({
   detalles: z.array(lineaSchema).min(1).max(50),
 });
 
+const actualizarSchema = z
+  .object({
+    observaciones: z.string().trim().min(1).max(2000).nullable().optional(),
+    detalles: z.array(lineaSchema).min(1).max(50).optional(),
+  })
+  .refine((datos) => Object.keys(datos).length > 0, { message: "Envía al menos un campo" });
+
 const listarSchema = z.object({
   id_solicitud: z.uuid().optional(),
   q: z.string().trim().max(50).optional(),
-  // Filtro por rango de total
   total_min: z.coerce.number().min(0).optional(),
   total_max: z.coerce.number().min(0).optional(),
   pagina: z.coerce.number().int().min(1).default(1),
@@ -66,7 +75,7 @@ const conDetalles = {
   },
 };
 
-function conSubtotales<T extends { detalles: Array<{ cantidad: unknown; precio_unitario: unknown }> }>(
+function conSubtotales<T extends { detalles: Array<{ cantidad: { toString: () => string }; precio_unitario: { toString: () => string } }> }>(
   cotizacion: T,
 ) {
   return {
@@ -84,6 +93,71 @@ interface Linea {
   id_material: string | null;
   cantidad: number;
   precio_unitario: number;
+}
+
+async function validarYObtenerLineas(detalles: z.output<typeof lineaSchema>[], res: Response): Promise<Linea[] | undefined> {
+  const idsMaterial = [
+    ...new Set(detalles.flatMap((d) => (d.id_material ? [d.id_material] : []))),
+  ];
+  const materiales = idsMaterial.length
+    ? await prisma.material.findMany({ where: { id_material: { in: idsMaterial } } })
+    : [];
+  const porId = new Map(materiales.map((m) => [m.id_material, m]));
+
+  const lineas: Linea[] = [];
+
+  for (const [indice, d] of detalles.entries()) {
+    const numero = indice + 1;
+
+    if (d.tipo === "SERVICIO") {
+      lineas.push({
+        tipo: "SERVICIO",
+        descripcion: d.descripcion ?? "",
+        id_material: null,
+        cantidad: d.cantidad,
+        precio_unitario: d.precio_unitario ?? 0,
+      });
+      continue;
+    }
+
+    const material = d.id_material ? porId.get(d.id_material) : undefined;
+
+    if (!material || !material.activo) {
+      res.status(400).json({ error: `El material de la línea ${numero} no existe o está desactivado` });
+      return undefined;
+    }
+
+    const precio =
+      d.precio_unitario ??
+      (material.precio_unitario !== null ? +material.precio_unitario : undefined);
+
+    if (precio === undefined) {
+      res.status(400).json({
+        error: `La línea ${numero} necesita precio: el material no tiene uno registrado`,
+      });
+      return undefined;
+    }
+
+    lineas.push({
+      tipo: "MATERIAL",
+      descripcion: d.descripcion ?? material.nombre,
+      id_material: material.id_material,
+      cantidad: d.cantidad,
+      precio_unitario: precio,
+    });
+  }
+
+  const centavos = lineas.reduce(
+    (suma, l) => suma + Math.round(l.cantidad * l.precio_unitario * 100),
+    0,
+  );
+
+  if (centavos > Math.round(MAXIMO * 100)) {
+    res.status(400).json({ error: "El total de la cotización excede el máximo permitido" });
+    return undefined;
+  }
+
+  return lineas;
 }
 
 cotizacionesRouter.get("/", async (req, res) => {
@@ -143,72 +217,11 @@ cotizacionesRouter.post("/", async (req, res) => {
     return;
   }
 
-  // Materiales de todas las líneas, en una sola consulta.
-  const idsMaterial = [
-    ...new Set(datos.detalles.flatMap((d) => (d.id_material ? [d.id_material] : []))),
-  ];
-  const materiales = idsMaterial.length
-    ? await prisma.material.findMany({ where: { id_material: { in: idsMaterial } } })
-    : [];
-  const porId = new Map(materiales.map((m) => [m.id_material, m]));
-
-  const lineas: Linea[] = [];
-
-  for (const [indice, d] of datos.detalles.entries()) {
-    const numero = indice + 1;
-
-    if (d.tipo === "SERVICIO") {
-      lineas.push({
-        tipo: "SERVICIO",
-        descripcion: d.descripcion ?? "",
-        id_material: null,
-        cantidad: d.cantidad,
-        precio_unitario: d.precio_unitario ?? 0,
-      });
-      continue;
-    }
-
-    const material = d.id_material ? porId.get(d.id_material) : undefined;
-
-    if (!material || !material.activo) {
-      res.status(400).json({ error: `El material de la línea ${numero} no existe o está desactivado` });
-      return;
-    }
-
-    const precio =
-      d.precio_unitario ??
-      (material.precio_unitario !== null ? Number(material.precio_unitario) : undefined);
-
-    if (precio === undefined) {
-      res.status(400).json({
-        error: `La línea ${numero} necesita precio: el material no tiene uno registrado`,
-      });
-      return;
-    }
-
-    lineas.push({
-      tipo: "MATERIAL",
-      descripcion: d.descripcion ?? material.nombre,
-      id_material: material.id_material,
-      cantidad: d.cantidad,
-      precio_unitario: precio,
-    });
-  }
-
-  // El total se calcula aquí, en centavos enteros para evitar errores de decimales.
-  const centavos = lineas.reduce(
-    (suma, l) => suma + Math.round(l.cantidad * l.precio_unitario * 100),
-    0,
-  );
-
-  if (centavos > Math.round(MAXIMO * 100)) {
-    res.status(400).json({ error: "El total de la cotización excede el máximo permitido" });
-    return;
-  }
+  const lineas = await validarYObtenerLineas(datos.detalles, res);
+  if (!lineas) return;
 
   const codigo = await siguienteCodigo("cotizacion");
 
-  // La solicitud pasa a COTIZADA y se crea la cotización en un solo paso atómico.
   const cotizacion = await prisma.$transaction(async (tx) => {
     const movida = await tx.solicitud.updateMany({
       where: {
@@ -225,7 +238,7 @@ cotizacionesRouter.post("/", async (req, res) => {
         codigo,
         id_solicitud: solicitud.id_solicitud,
         id_usuario: sesion.id,
-        total: centavos / 100,
+        total: lineas.reduce((suma, l) => suma + Math.round(l.cantidad * l.precio_unitario * 100), 0) / 100,
         observaciones: datos.observaciones,
         detalles: { create: lineas },
       },
@@ -258,4 +271,179 @@ cotizacionesRouter.get("/:id", async (req, res) => {
   }
 
   res.json({ cotizacion: conSubtotales(cotizacion) });
+});
+
+// PATCH /:id - Editar cotización (solo ADMIN, solo si solicitud está COTIZADA)
+cotizacionesRouter.patch("/:id", soloAdmin, async (req, res) => {
+  const params = validar(idSchema, req.params, res);
+  if (!params) return;
+
+  const datos = validar(actualizarSchema, req.body, res);
+  if (!datos) return;
+
+  const existente = await prisma.cotizacion.findUnique({
+    where: { id_cotizacion: params.id },
+    include: { solicitud: { select: { estado: true } } },
+  });
+
+  if (!existente) {
+    res.status(404).json({ error: "Cotización no encontrada" });
+    return;
+  }
+
+  if (existente.solicitud.estado !== "COTIZADA") {
+    res.status(409).json({ error: "Solo se puede editar una cotización mientras la solicitud está en COTIZADA" });
+    return;
+  }
+
+  let lineas: Linea[] | undefined;
+  if (datos.detalles) {
+    lineas = await validarYObtenerLineas(datos.detalles, res);
+    if (!lineas) return;
+  }
+
+  const centavos = lineas
+    ? lineas.reduce((suma, l) => suma + Math.round(l.cantidad * l.precio_unitario * 100), 0)
+    : undefined;
+
+  const actualizada = await prisma.$transaction(async (tx) => {
+    // Verificar que la solicitud siga en COTIZADA
+    const movida = await tx.solicitud.updateMany({
+      where: { id_solicitud: existente.id_solicitud, estado: "COTIZADA" },
+      data: { estado: "COTIZADA" }, // no-op, solo verifica
+    });
+
+    if (movida.count === 0) return null;
+
+    return tx.cotizacion.update({
+      where: { id_cotizacion: params.id },
+      data: {
+        ...(datos.observaciones !== undefined ? { observaciones: datos.observaciones } : {}),
+        ...(centavos !== undefined ? { total: centavos / 100 } : {}),
+        ...(lineas
+          ? {
+              detalles: {
+                deleteMany: {},
+                create: lineas,
+              },
+            }
+          : {}),
+      },
+      include: conDetalles,
+    });
+  });
+
+  if (!actualizada) {
+    res.status(409).json({ error: "La solicitud ya no está en estado COTIZADA" });
+    return;
+  }
+
+  res.json({ cotizacion: conSubtotales(actualizada) });
+});
+
+// POST /:id/aprobar - Aprobar cotización (solo ADMIN)
+cotizacionesRouter.post("/:id/aprobar", soloAdmin, async (req, res) => {
+  const params = validar(idSchema, req.params, res);
+  if (!params) return;
+
+  const cotizacion = await prisma.cotizacion.findUnique({
+    where: { id_cotizacion: params.id },
+    include: { solicitud: { select: { estado: true, id_solicitud: true } } },
+  });
+
+  if (!cotizacion) {
+    res.status(404).json({ error: "Cotización no encontrada" });
+    return;
+  }
+
+  if (cotizacion.solicitud.estado !== "COTIZADA") {
+    res.status(409).json({ error: "Solo se puede aprobar una cotización con la solicitud en COTIZADA" });
+    return;
+  }
+
+  // La aprobación es solo un marcador: la solicitud sigue en COTIZADA hasta que se cree la orden
+  // Podríamos agregar un campo 'aprobada' en Cotizacion, pero por ahora solo validamos
+  res.json({ mensaje: "Cotización aprobada. Puede crear la orden de trabajo.", cotizacion });
+});
+
+// POST /:id/rechazar - Rechazar cotización (solo ADMIN) -> solicitud vuelve a EN_DIAGNOSTICO
+cotizacionesRouter.post("/:id/rechazar", soloAdmin, async (req, res) => {
+  const params = validar(idSchema, req.params, res);
+  if (!params) return;
+
+  const cotizacion = await prisma.cotizacion.findUnique({
+    where: { id_cotizacion: params.id },
+    include: { solicitud: { select: { estado: true, id_solicitud: true } } },
+  });
+
+  if (!cotizacion) {
+    res.status(404).json({ error: "Cotización no encontrada" });
+    return;
+  }
+
+  if (cotizacion.solicitud.estado !== "COTIZADA") {
+    res.status(409).json({ error: "Solo se puede rechazar una cotización con la solicitud en COTIZADA" });
+    return;
+  }
+
+  const rechazada = await prisma.$transaction(async (tx) => {
+    const movida = await tx.solicitud.updateMany({
+      where: { id_solicitud: cotizacion.id_solicitud, estado: "COTIZADA" },
+      data: { estado: "EN_DIAGNOSTICO" },
+    });
+
+    if (movida.count === 0) return null;
+
+    return tx.cotizacion.findUnique({
+      where: { id_cotizacion: params.id },
+      include: conDetalles,
+    });
+  });
+
+  if (!rechazada) {
+    res.status(409).json({ error: "La solicitud ya no está en estado COTIZADA" });
+    return;
+  }
+
+  res.json({ mensaje: "Cotización rechazada. La solicitud vuelve a EN_DIAGNOSTICO.", cotizacion: conSubtotales(rechazada) });
+});
+
+// DELETE /:id - Eliminar cotización (solo ADMIN, solo si solicitud está COTIZADA)
+cotizacionesRouter.delete("/:id", soloAdmin, async (req, res) => {
+  const params = validar(idSchema, req.params, res);
+  if (!params) return;
+
+  const cotizacion = await prisma.cotizacion.findUnique({
+    where: { id_cotizacion: params.id },
+    include: { solicitud: { select: { estado: true, id_solicitud: true } } },
+  });
+
+  if (!cotizacion) {
+    res.status(404).json({ error: "Cotización no encontrada" });
+    return;
+  }
+
+  if (cotizacion.solicitud.estado !== "COTIZADA") {
+    res.status(409).json({ error: "Solo se puede eliminar una cotización con la solicitud en COTIZADA" });
+    return;
+  }
+
+  const eliminada = await prisma.$transaction(async (tx) => {
+    const movida = await tx.solicitud.updateMany({
+      where: { id_solicitud: cotizacion.id_solicitud, estado: "COTIZADA" },
+      data: { estado: "EN_DIAGNOSTICO" },
+    });
+
+    if (movida.count === 0) return false;
+
+    await tx.cotizacion.delete({ where: { id_cotizacion: params.id } });
+    return true;
+  });
+
+  if (!eliminada) {
+    res.status(409).json({ error: "La solicitud ya no está en estado COTIZADA" });
+    return;
+  }
+
+  res.status(204).end();
 });

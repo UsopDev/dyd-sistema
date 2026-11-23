@@ -24,14 +24,24 @@ const loginSchema = z.object({
   password: z.string().min(1).max(200),
 });
 
+const esProduccion = env.NODE_ENV === "production";
+
 const opcionesCookie = {
   httpOnly: true,
-  sameSite: "lax" as const,
-  secure: env.NODE_ENV === "production",
+  sameSite: (esProduccion ? "none" : "lax") as "lax" | "none",
+  secure: esProduccion,
   path: "/",
 };
 
 // Solo cuentan los intentos fallidos: un login correcto no consume el límite.
+const limitadorRefresh = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 30,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: { error: "Demasiadas solicitudes de refresco. Intenta de nuevo más tarde." },
+});
+
 const limitadorLogin = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 10,
@@ -104,17 +114,25 @@ authRouter.post("/login", limitadorLogin, async (req, res) => {
   res.json({ usuario: datosUsuario(usuario) });
 });
 
-authRouter.post("/refresh", async (req, res) => {
+authRouter.post("/refresh", limitadorRefresh, async (req, res) => {
   const token: string | undefined = req.cookies?.[COOKIE_REFRESCO];
-  const idUsuario = token ? await consumirRefreshToken(token) : null;
+  const sesion = res.locals.sesion as SesionUsuario | undefined;
 
-  if (!idUsuario) {
+  if (!token || !sesion) {
     limpiarCookies(res);
     res.status(401).json({ error: "Sesión expirada" });
     return;
   }
 
-  const usuario = await prisma.usuario.findUnique({ where: { id_usuario: idUsuario } });
+  const valido = await consumirRefreshToken(token, sesion.id);
+
+  if (!valido) {
+    limpiarCookies(res);
+    res.status(401).json({ error: "Sesión expirada" });
+    return;
+  }
+
+  const usuario = await prisma.usuario.findUnique({ where: { id_usuario: sesion.id } });
 
   if (!usuario || !usuario.activo) {
     limpiarCookies(res);
@@ -140,9 +158,10 @@ authRouter.get("/me", requireAuth, async (_req, res) => {
 
 authRouter.post("/logout", async (req, res) => {
   const token: string | undefined = req.cookies?.[COOKIE_REFRESCO];
+  const sesion = res.locals.sesion as SesionUsuario | undefined;
 
-  if (token) {
-    await revocarRefreshToken(token);
+  if (token && sesion) {
+    await revocarRefreshToken(token, sesion.id);
   }
 
   limpiarCookies(res);

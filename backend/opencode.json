@@ -6,7 +6,10 @@
       "enabled": true,
       "type": "local",
       "command": [
-        "npx", "-y", "@modelcontextprotocol/server-filesystem", "/home/yanira/proyectos/dyd-sistema/backend/"
+        "npx",
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "/home/nicolas/Desktop/Udabol/HelpGrils/Yanira/dyd-sistema/backend/"
       ]
     }
   }

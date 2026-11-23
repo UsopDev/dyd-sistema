@@ -6,6 +6,7 @@ import { validar } from "../../lib/validar.js";
 import type { SesionUsuario } from "../../lib/jwt.js";
 import { whereRangoFecha, rangosFechaCampos } from "../../lib/filtros.js";
 import type { RolUsuario } from "@prisma/client";
+import { revocarTodosRefreshTokens } from "../../lib/refresh-tokens.js";
 
 export const usuariosRouter = Router();
 
@@ -161,14 +162,22 @@ usuariosRouter.patch("/:id", async (req, res) => {
 
   const { password, ...resto } = cuerpo;
 
+  const cambiaPassword = password !== undefined;
+  const cambiaRol = cuerpo.rol !== undefined && cuerpo.rol !== existente.rol;
+
   const usuario = await prisma.usuario.update({
     where: { id_usuario: params.id },
     data: {
       ...resto,
-      ...(password ? { password_hash: await hashPassword(password) } : {}),
+      ...(cambiaPassword ? { password_hash: await hashPassword(password!) } : {}),
     },
     select: seleccion,
   });
+
+  // Revocar todos los refresh tokens del usuario si cambió password o rol
+  if (cambiaPassword || cambiaRol) {
+    await revocarTodosRefreshTokens(params.id);
+  }
 
   res.json({ usuario });
 });

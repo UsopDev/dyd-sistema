@@ -276,3 +276,26 @@ preventivosRouter.patch("/:id", soloAdmin, async (req, res) => {
 
   res.json({ preventivo: conEstado(actualizada, aFecha(hoyLocal())) });
 });
+
+// DELETE /:id - Eliminar/desactivar programación (solo ADMIN)
+preventivosRouter.delete("/:id", soloAdmin, async (req, res) => {
+  const params = validar(idSchema, req.params, res);
+  if (!params) return;
+
+  const existente = await prisma.programacionPreventiva.findUnique({
+    where: { id_programacion: params.id },
+  });
+
+  if (!existente) {
+    res.status(404).json({ error: "Programación no encontrada" });
+    return;
+  }
+
+  // Soft delete: solo desactivar
+  await prisma.programacionPreventiva.update({
+    where: { id_programacion: params.id },
+    data: { activo: false },
+  });
+
+  res.status(204).end();
+});
