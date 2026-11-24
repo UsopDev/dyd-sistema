@@ -11,6 +11,17 @@
         "@modelcontextprotocol/server-filesystem",
         "/home/nicolas/Desktop/Udabol/HelpGrils/Yanira/dyd-sistema/backend/"
       ]
+    },
+
+    "git": {
+      "type": "local",
+      "enabled": true,
+      "command": [
+        "uvx",
+        "mcp-server-git",
+        "--repository",
+        "/home/nicolas/Desktop/Udabol/HelpGrils/Yanira/dyd-sistema/"
+      ]
     }
   }
 }

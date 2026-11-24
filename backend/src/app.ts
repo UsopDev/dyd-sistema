@@ -28,7 +28,7 @@ export const app = express();
 
 // Request ID middleware (para correlacionar logs)
 app.use((req, _res, next) => {
-  req.id = req.headers["x-request-id"] as string || randomUUID();
+  req.id = (req.headers["x-request-id"] as string) || randomUUID();
   next();
 });
 
@@ -40,9 +40,25 @@ if (env.NODE_ENV !== "production") {
     res.on("finish", () => {
       const duration = Date.now() - start;
       if (res.statusCode >= 400) {
-        reqLogger.warn({ method: req.method, url: req.originalUrl, status: res.statusCode, duration }, "HTTP request");
+        reqLogger.warn(
+          {
+            method: req.method,
+            url: req.originalUrl,
+            status: res.statusCode,
+            duration,
+          },
+          "HTTP request",
+        );
       } else {
-        reqLogger.debug({ method: req.method, url: req.originalUrl, status: res.statusCode, duration }, "HTTP request");
+        reqLogger.debug(
+          {
+            method: req.method,
+            url: req.originalUrl,
+            status: res.statusCode,
+            duration,
+          },
+          "HTTP request",
+        );
       }
     });
     next();
@@ -56,21 +72,27 @@ app.use(express.json());
 app.use(cookieParser());
 
 // Rate limiting global (100 req/15min por IP)
-app.use(rateLimit({
-  windowMs: 15 * 60 * 1000,
-  limit: 100,
-  standardHeaders: "draft-8",
-  legacyHeaders: false,
-  message: { error: "Demasiadas solicitudes. Intenta de nuevo más tarde." },
-  keyGenerator: (req) => ipKeyGenerator(req.ip ?? "unknown"),
-}));
+app.use(
+  rateLimit({
+    windowMs: 15 * 60 * 1000,
+    limit: 100,
+    standardHeaders: "draft-8",
+    legacyHeaders: false,
+    message: { error: "Demasiadas solicitudes. Intenta de nuevo más tarde." },
+    keyGenerator: (req) => ipKeyGenerator(req.ip ?? "unknown"),
+  }),
+);
 
 // Swagger UI (solo en desarrollo)
 if (env.NODE_ENV !== "production") {
-  app.use("/api/docs", swaggerUi.serve, swaggerUi.setup(openApiSpec, {
-    customCss: ".swagger-ui .topbar { display: none }",
-    customSiteTitle: "DYD Sistema API Docs",
-  }));
+  app.use(
+    "/api/docs",
+    swaggerUi.serve,
+    swaggerUi.setup(openApiSpec, {
+      customCss: ".swagger-ui .topbar { display: none }",
+      customSiteTitle: "DYD Sistema API Docs",
+    }),
+  );
   // JSON spec endpoint
   app.get("/api/docs.json", (_req, res) => {
     res.json(openApiSpec);
@@ -87,18 +109,38 @@ app.get("/api/health/db", async (_req, res) => {
 });
 
 app.use("/api/auth", authRouter);
-app.use("/api/usuarios", requireAuth, requireRol("ADMINISTRADOR"), usuariosRouter);
+app.use(
+  "/api/usuarios",
+  requireAuth,
+  requireRol("ADMINISTRADOR"),
+  usuariosRouter,
+);
 app.use("/api/clientes", requireAuth, clientesRouter);
 app.use("/api/maquinas", requireAuth, maquinasRouter);
 app.use("/api/materiales", requireAuth, materialesRouter);
 app.use("/api/solicitudes", requireAuth, solicitudesRouter);
 app.use("/api/diagnosticos", requireAuth, diagnosticosRouter);
-app.use("/api/cotizaciones", requireAuth, requireRol("ADMINISTRADOR"), cotizacionesRouter);
+app.use(
+  "/api/cotizaciones",
+  requireAuth,
+  requireRol("ADMINISTRADOR"),
+  cotizacionesRouter,
+);
 app.use("/api/ordenes", requireAuth, ordenesRouter);
 app.use("/api/uso", requireAuth, usoRouter);
 app.use("/api/preventivos", requireAuth, preventivosRouter);
-app.use("/api/alertas-correo", requireAuth, requireRol("ADMINISTRADOR"), alertasCorreoRouter);
-app.use("/api/reportes", requireAuth, requireRol("ADMINISTRADOR"), reportesRouter);
+app.use(
+  "/api/alertas-correo",
+  requireAuth,
+  requireRol("ADMINISTRADOR"),
+  alertasCorreoRouter,
+);
+app.use(
+  "/api/reportes",
+  requireAuth,
+  requireRol("ADMINISTRADOR"),
+  reportesRouter,
+);
 
 app.use((_req, res) => {
   res.status(404).json({ error: "Ruta no encontrada" });
@@ -107,7 +149,12 @@ app.use((_req, res) => {
 type ErrorHttp = Error & { status?: number; statusCode?: number };
 
 app.use(
-  (err: ErrorHttp, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+  (
+    err: ErrorHttp,
+    req: express.Request,
+    res: express.Response,
+    _next: express.NextFunction,
+  ) => {
     const status = err.status ?? err.statusCode ?? 500;
     const reqLogger = createRequestLogger(req.id);
 
