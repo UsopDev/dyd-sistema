@@ -1,0 +1,49 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Plus Jakarta Sans Variable", ui-sans-serif, system-ui, -apple-system,
+    "Segoe UI", sans-serif;
+  --color-ink: #0f172a;
+  --color-muted: #64748b;
+  --color-brand: #2563eb;
+  --color-brand-soft: #dbeafe;
+  --color-sky-accent: #38bdf8;
+  --shadow-glass: 0 8px 30px rgba(15, 23, 42, 0.06);
+}
+
+@layer base {
+  * {
+    @apply border-slate-200/70;
+  }
+
+  html {
+    @apply antialiased;
+  }
+
+  body {
+    @apply min-h-screen bg-[#f4f8ff] text-ink;
+    font-family: var(--font-sans);
+    background-image:
+      radial-gradient(1200px 600px at 10% -10%, #dbeafe 0%, transparent 60%),
+      radial-gradient(900px 500px at 100% 0%, #e0f2fe 0%, transparent 55%),
+      linear-gradient(180deg, #f4f8ff 0%, #eef5ff 45%, #f8fbff 100%);
+    background-attachment: fixed;
+  }
+
+  ::selection {
+    @apply bg-blue-200 text-blue-950;
+  }
+}
+
+@layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+    scrollbar-color: rgb(148 163 184 / 0.45) transparent;
+  }
+
+  .recharts-label-list text {
+    fill: #64748b;
+    font-size: 11px;
+    font-weight: 600;
+  }
+}

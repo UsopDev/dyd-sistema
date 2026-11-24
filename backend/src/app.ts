@@ -7,7 +7,7 @@ import swaggerUi from "swagger-ui-express";
 import { randomUUID } from "node:crypto";
 import { prisma } from "./lib/prisma.js";
 import { openApiSpec } from "./lib/openapi.js";
-import { logger, createRequestLogger } from "./lib/logger.js";
+import { createRequestLogger } from "./lib/logger.js";
 import { authRouter } from "./modules/auth/auth.routes.js";
 import { usuariosRouter } from "./modules/usuarios/usuarios.routes.js";
 import { clientesRouter } from "./modules/clientes/clientes.routes.js";
@@ -20,6 +20,9 @@ import { ordenesRouter } from "./modules/ordenes/ordenes.routes.js";
 import { usoRouter } from "./modules/uso/uso.routes.js";
 import { preventivosRouter } from "./modules/preventivos/preventivos.routes.js";
 import { alertasCorreoRouter } from "./modules/preventivos/alertas-correo.js";
+import { miRouter } from "./modules/mi/mi.routes.js";
+import { clienteAuthRouter } from "./modules/cliente/cliente.auth.routes.js";
+import { clienteRouter } from "./modules/cliente/cliente.routes.js";
 import { reportesRouter } from "./modules/reportes/reportes.routes.js";
 import { requireAuth, requireRol } from "./middleware/auth.js";
 import { env } from "./config/env.js";
@@ -71,11 +74,11 @@ app.use(cors({ origin: "http://localhost:5173", credentials: true }));
 app.use(express.json());
 app.use(cookieParser());
 
-// Rate limiting global (100 req/15min por IP)
+// Rate limiting global (1000 req/15min por IP en desarrollo, 300 en producción)
 app.use(
   rateLimit({
     windowMs: 15 * 60 * 1000,
-    limit: 100,
+    limit: env.NODE_ENV === "production" ? 300 : 1000,
     standardHeaders: "draft-8",
     legacyHeaders: false,
     message: { error: "Demasiadas solicitudes. Intenta de nuevo más tarde." },
@@ -141,6 +144,13 @@ app.use(
   requireRol("ADMINISTRADOR"),
   reportesRouter,
 );
+app.use(
+  "/api/mi",
+  requireAuth,
+  miRouter,
+);
+app.use("/api/cliente/auth", clienteAuthRouter);
+app.use("/api/cliente", clienteRouter);
 
 app.use((_req, res) => {
   res.status(404).json({ error: "Ruta no encontrada" });

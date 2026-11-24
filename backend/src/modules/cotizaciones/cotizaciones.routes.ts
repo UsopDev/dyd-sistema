@@ -233,15 +233,16 @@ cotizacionesRouter.post("/", async (req, res) => {
 
     if (movida.count === 0) return null;
 
-    return tx.cotizacion.create({
-      data: {
+    const data = {
         codigo,
         id_solicitud: solicitud.id_solicitud,
         id_usuario: sesion.id,
         total: lineas.reduce((suma, l) => suma + Math.round(l.cantidad * l.precio_unitario * 100), 0) / 100,
-        observaciones: datos.observaciones,
+        ...(datos.observaciones !== undefined ? { observaciones: datos.observaciones } : {}),
         detalles: { create: lineas },
-      },
+      };
+    return tx.cotizacion.create({
+      data,
       include: conDetalles,
     });
   });
@@ -315,9 +316,7 @@ cotizacionesRouter.patch("/:id", soloAdmin, async (req, res) => {
 
     if (movida.count === 0) return null;
 
-    return tx.cotizacion.update({
-      where: { id_cotizacion: params.id },
-      data: {
+    const updateData = {
         ...(datos.observaciones !== undefined ? { observaciones: datos.observaciones } : {}),
         ...(centavos !== undefined ? { total: centavos / 100 } : {}),
         ...(lineas
@@ -328,7 +327,10 @@ cotizacionesRouter.patch("/:id", soloAdmin, async (req, res) => {
               },
             }
           : {}),
-      },
+      };
+    return tx.cotizacion.update({
+      where: { id_cotizacion: params.id },
+      data: updateData,
       include: conDetalles,
     });
   });

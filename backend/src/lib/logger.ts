@@ -3,18 +3,8 @@ import { env } from "../config/env.js";
 
 const isProd = env.NODE_ENV === "production";
 
-export const logger = pino({
+const loggerOptions: pino.LoggerOptions = {
   level: isProd ? "info" : "debug",
-  transport: isProd
-    ? undefined
-    : {
-        target: "pino-pretty",
-        options: {
-          colorize: true,
-          translateTime: "SYS:standard",
-          ignore: "pid,hostname",
-        },
-      },
   redact: {
     paths: [
       "req.headers.authorization",
@@ -31,7 +21,20 @@ export const logger = pino({
     service: "dyd-backend",
     env: env.NODE_ENV,
   },
-});
+};
+
+if (!isProd) {
+  loggerOptions.transport = {
+    target: "pino-pretty",
+    options: {
+      colorize: true,
+      translateTime: "SYS:standard",
+      ignore: "pid,hostname",
+    },
+  };
+}
+
+export const logger = pino(loggerOptions);
 
 export function createRequestLogger(reqId: string) {
   return logger.child({ reqId });

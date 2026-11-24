@@ -189,8 +189,11 @@ maquinasRouter.post("/", soloAdmin, async (req, res) => {
     }
   }
 
+  const data = Object.fromEntries(
+    Object.entries(datos).filter(([, v]) => v !== undefined),
+  ) as any;
   const maquina = await prisma.maquina.create({
-    data: { ...datos, id_cliente: idCliente },
+    data: { ...data, id_cliente: idCliente },
     include: { cliente: clienteResumen },
   });
 

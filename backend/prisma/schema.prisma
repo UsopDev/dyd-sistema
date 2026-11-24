@@ -103,21 +103,37 @@ model Usuario {
 }
 
 model Cliente {
-  id_cliente     String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  razon_social   String   @db.VarChar(150)
-  ruc_dni        String?  @unique @db.VarChar(15)
-  contacto       String?  @db.VarChar(100)
-  telefono       String?  @db.VarChar(20)
-  email          String?  @db.VarChar(120)
-  direccion      String?  @db.VarChar(200)
-  activo         Boolean  @default(true)
-  creado_en      DateTime @default(now())
-  actualizado_en DateTime @default(now()) @updatedAt
+  id_cliente      String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  razon_social    String   @db.VarChar(150)
+  ruc_dni         String?  @unique @db.VarChar(15)
+  contacto        String?  @db.VarChar(100)
+  telefono        String?  @db.VarChar(20)
+  email           String?  @unique @db.VarChar(120)
+  password_hash   String?  @db.VarChar(255)
+  direccion       String?  @db.VarChar(200)
+  activo          Boolean  @default(true)
+  creado_en       DateTime @default(now())
+  actualizado_en  DateTime @default(now()) @updatedAt
 
-  maquinas    Maquina[]
-  solicitudes Solicitud[]
+  maulas         Maquina[]
+  solicitudes     Solicitud[]
+  refresh_tokens  ClienteRefreshToken[]
 
   @@map("clientes")
+}
+
+model ClienteRefreshToken {
+  id_refresh_token String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  id_cliente       String   @db.Uuid
+  token_hash       String   @unique @db.VarChar(255)
+  expira_en        DateTime @db.Timestamp(6)
+  revocado_en      DateTime? @db.Timestamp(6)
+  creado_en        DateTime @default(now())
+
+  cliente Cliente @relation(fields: [id_cliente], references: [id_cliente])
+
+  @@index([id_cliente])
+  @@map("cliente_refresh_tokens")
 }
 
 model Maquina {

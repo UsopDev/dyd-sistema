@@ -123,7 +123,10 @@ materialesRouter.post("/", soloAdmin, async (req, res) => {
     }
   }
 
-  const material = await prisma.material.create({ data: datos });
+  const data = Object.fromEntries(
+    Object.entries(datos).filter(([, v]) => v !== undefined),
+  ) as any;
+  const material = await prisma.material.create({ data });
   res.status(201).json({ material });
 });
 
@@ -163,7 +166,10 @@ materialesRouter.patch("/:id", soloAdmin, async (req, res) => {
     }
   }
 
-  const material = await prisma.material.update({ where: { id_material: params.id }, data: datos });
+  const data = Object.fromEntries(
+    Object.entries(datos).filter(([, v]) => v !== undefined),
+  ) as any;
+  const material = await prisma.material.update({ where: { id_material: params.id }, data });
   res.json({ material });
 });
 
@@ -213,7 +219,7 @@ materialesRouter.post("/:id/movimientos", soloAdmin, async (req, res) => {
         id_usuario: sesion.id,
         tipo: datos.tipo,
         cantidad: datos.cantidad,
-        motivo: datos.motivo,
+        ...(datos.motivo !== undefined ? { motivo: datos.motivo } : {}),
       },
     });
 

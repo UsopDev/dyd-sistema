@@ -116,23 +116,16 @@ authRouter.post("/login", limitadorLogin, async (req, res) => {
 
 authRouter.post("/refresh", limitadorRefresh, async (req, res) => {
   const token: string | undefined = req.cookies?.[COOKIE_REFRESCO];
-  const sesion = res.locals.sesion as SesionUsuario | undefined;
 
-  if (!token || !sesion) {
+  const idUsuario = token ? await consumirRefreshToken(token) : null;
+
+  if (!idUsuario) {
     limpiarCookies(res);
     res.status(401).json({ error: "Sesión expirada" });
     return;
   }
 
-  const valido = await consumirRefreshToken(token, sesion.id);
-
-  if (!valido) {
-    limpiarCookies(res);
-    res.status(401).json({ error: "Sesión expirada" });
-    return;
-  }
-
-  const usuario = await prisma.usuario.findUnique({ where: { id_usuario: sesion.id } });
+  const usuario = await prisma.usuario.findUnique({ where: { id_usuario: idUsuario } });
 
   if (!usuario || !usuario.activo) {
     limpiarCookies(res);
@@ -158,10 +151,9 @@ authRouter.get("/me", requireAuth, async (_req, res) => {
 
 authRouter.post("/logout", async (req, res) => {
   const token: string | undefined = req.cookies?.[COOKIE_REFRESCO];
-  const sesion = res.locals.sesion as SesionUsuario | undefined;
 
-  if (token && sesion) {
-    await revocarRefreshToken(token, sesion.id);
+  if (token) {
+    await revocarRefreshToken(token);
   }
 
   limpiarCookies(res);

@@ -107,16 +107,17 @@ diagnosticosRouter.post("/", async (req, res) => {
 
     if (movida.count === 0) return null;
 
-    return tx.diagnostico.create({
-      data: {
+    const data = {
         id_solicitud: solicitud.id_solicitud,
         id_maquina: solicitud.id_maquina,
         id_tecnico: sesion.id,
         estado_general: datos.estado_general,
         fallas_detectadas: datos.fallas_detectadas,
-        observaciones: datos.observaciones,
-        recomendaciones: datos.recomendaciones,
-      },
+        ...(datos.observaciones !== undefined ? { observaciones: datos.observaciones } : {}),
+        ...(datos.recomendaciones !== undefined ? { recomendaciones: datos.recomendaciones } : {}),
+      };
+    return tx.diagnostico.create({
+      data,
       include: resumen,
     });
   });

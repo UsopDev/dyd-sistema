@@ -238,14 +238,15 @@ ordenesRouter.post("/", soloAdmin, async (req, res) => {
 
     if (movida.count === 0) return null;
 
-    return tx.ordenTrabajo.create({
-      data: {
+    const data = {
         codigo,
         id_solicitud: solicitud.id_solicitud,
         id_diagnostico: idDiagnostico,
         id_tecnico: tecnico.id_usuario,
-        monto,
-      },
+        ...(monto !== undefined ? { monto } : {}),
+      };
+    return tx.ordenTrabajo.create({
+      data,
       include: resumen,
     });
   });

@@ -3,8 +3,8 @@ import { z } from "zod";
 import { prisma } from "../../lib/prisma.js";
 import { validar } from "../../lib/validar.js";
 import { requireRol } from "../../middleware/auth.js";
-import { whereRangoFecha, rangosFechaCampos } from "../../lib/filtros.js";
-import type { EstadoSolicitud, EstadoOrden, TipoServicio, Prioridad } from "@prisma/client";
+import { whereRangoFecha } from "../../lib/filtros.js";
+import type { EstadoSolicitud, TipoServicio, Prioridad } from "@prisma/client";
 
 export const reportesRouter = Router();
 
@@ -455,7 +455,7 @@ reportesRouter.get("/resumen", soloAdmin, async (req, res) => {
     prisma.solicitud.count({ where: { ...whereSolicitud, estado: { in: ["EN_DIAGNOSTICO", "COTIZADA", "ASIGNADA", "EN_PROCESO"] } } }),
     prisma.ordenTrabajo.count({ where: { ...whereOrden, estado: "FINALIZADA" } }),
     prisma.ordenTrabajo.aggregate({ where: { ...whereOrden, estado: "FINALIZADA", monto: { not: null } }, _sum: { monto: true } }),
-    prisma.maquina.count({ where: { activo: true, estado: "OPERATIVA" } }),
+    prisma.maquina.count({ where: { estado: "OPERATIVA" } }),
     prisma.cliente.count({ where: { activo: true } }),
   ]);
 
@@ -633,7 +633,7 @@ reportesRouter.get("/exportar/:tipo", soloAdmin, async (req, res) => {
           prisma.solicitud.count({ where: { ...whereSolicitud, estado: { in: ["EN_DIAGNOSTICO", "COTIZADA", "ASIGNADA", "EN_PROCESO"] } } }),
           prisma.ordenTrabajo.count({ where: { ...whereOrden, estado: "FINALIZADA" } }),
           prisma.ordenTrabajo.aggregate({ where: { ...whereOrden, estado: "FINALIZADA", monto: { not: null } }, _sum: { monto: true } }),
-          prisma.maquina.count({ where: { activo: true, estado: "OPERATIVA" } }),
+          prisma.maquina.count({ where: { estado: "OPERATIVA" } }),
           prisma.cliente.count({ where: { activo: true } }),
         ]);
         return {

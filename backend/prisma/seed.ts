@@ -1,25 +1,117 @@
 import { prisma } from "../src/lib/prisma.js";
 import { hashPassword } from "../src/lib/passwords.js";
 
-const email = process.env.ADMIN_EMAIL?.toLowerCase();
-const password = process.env.ADMIN_PASSWORD;
+// Seed de desarrollo/demo.
+// Re-ejecutarlo restablece las contraseñas de los tres usuarios.
 
-if (!email || !password || password.length < 8) {
-  console.error("Define ADMIN_EMAIL y ADMIN_PASSWORD (mínimo 8 caracteres) en backend/.env");
-  process.exit(1);
+function emailValido(
+  valor: string | undefined,
+  variable: string,
+  porDefecto?: string,
+): string {
+  const email = (valor ?? porDefecto)?.trim().toLowerCase();
+
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    console.error(`Define ${variable} con un correo válido (backend/.env o backend/.env.docker).`);
+    process.exit(1);
+  }
+
+  return email;
 }
 
+function passwordValida(valor: string | undefined, variable: string): string {
+  if (!valor || valor.length < 8) {
+    console.error(
+      `Define ${variable} con al menos 8 caracteres (backend/.env o backend/.env.docker).`,
+    );
+    process.exit(1);
+  }
+
+  return valor;
+}
+
+const adminEmail = emailValido(process.env.ADMIN_EMAIL, "ADMIN_EMAIL");
+const adminPassword = passwordValida(process.env.ADMIN_PASSWORD, "ADMIN_PASSWORD");
+
+const tecnicoEmail = emailValido(
+  process.env.DEMO_TECNICO_EMAIL,
+  "DEMO_TECNICO_EMAIL",
+  "tecnico@dyd.com",
+);
+const tecnicoPassword = passwordValida(
+  process.env.DEMO_TECNICO_PASSWORD ?? "Tecnico1234",
+  "DEMO_TECNICO_PASSWORD",
+);
+
+const clienteEmail = emailValido(
+  process.env.DEMO_CLIENTE_EMAIL,
+  "DEMO_CLIENTE_EMAIL",
+  "cliente@dyd.com",
+);
+const clientePassword = passwordValida(
+  process.env.DEMO_CLIENTE_PASSWORD ?? "Cliente1234",
+  "DEMO_CLIENTE_PASSWORD",
+);
+
+const adminHash = await hashPassword(adminPassword);
+const tecnicoHash = await hashPassword(tecnicoPassword);
+const clienteHash = await hashPassword(clientePassword);
+
 await prisma.usuario.upsert({
-  where: { email },
-  update: {},
+  where: { email: adminEmail },
+  update: {
+    password_hash: adminHash,
+    rol: "ADMINISTRADOR",
+    activo: true,
+  },
   create: {
     nombres: "Administrador",
     apellidos: "DYD",
-    email,
-    password_hash: await hashPassword(password),
+    email: adminEmail,
+    password_hash: adminHash,
     rol: "ADMINISTRADOR",
   },
 });
 
-console.log(`Administrador listo: ${email}`);
+await prisma.usuario.upsert({
+  where: { email: tecnicoEmail },
+  update: {
+    password_hash: tecnicoHash,
+    rol: "TECNICO",
+    activo: true,
+  },
+  create: {
+    nombres: "Técnico",
+    apellidos: "Demo",
+    email: tecnicoEmail,
+    password_hash: tecnicoHash,
+    rol: "TECNICO",
+  },
+});
+
+await prisma.cliente.upsert({
+  where: { email: clienteEmail },
+  update: {
+    password_hash: clienteHash,
+    activo: true,
+  },
+  create: {
+    razon_social: "Cliente Demo S.A.C.",
+    ruc_dni: "20999999999",
+    contacto: "Contacto Demo",
+    telefono: "999 888 777",
+    email: clienteEmail,
+    password_hash: clienteHash,
+    direccion: "Av. Industrial 123, Lima",
+    activo: true,
+  },
+});
+
+console.log("\nUsuarios demo listos. Re-ejecutar el seed restablece estas contraseñas:\n");
+console.table([
+  { Rol: "Administrador", Email: adminEmail, "Contraseña": adminPassword },
+  { Rol: "Técnico", Email: tecnicoEmail, "Contraseña": tecnicoPassword },
+  { Rol: "Cliente", Email: clienteEmail, "Contraseña": clientePassword },
+]);
+
 await prisma.$disconnect();

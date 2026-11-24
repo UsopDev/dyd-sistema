@@ -197,18 +197,21 @@ preventivosRouter.post("/", soloAdmin, async (req, res) => {
     ? sumarDias(aFecha(fechaUltimo), datos.frecuencia_dias)
     : null;
 
+  const data = Object.fromEntries(
+      Object.entries({
+        id_maquina: maquina.id_maquina,
+        descripcion: datos.descripcion,
+        frecuencia_horas: datos.frecuencia_horas,
+        frecuencia_dias: datos.frecuencia_dias,
+        dias_aviso: datos.dias_aviso,
+        horas_aviso: datos.horas_aviso,
+        horas_ultimo_mant: horasUltimo,
+        fecha_ultimo_mant: aFecha(fechaUltimo),
+        proximo_mant: proximo,
+      }).filter(([, v]) => v !== undefined),
+    ) as any;
   const creada = await prisma.programacionPreventiva.create({
-    data: {
-      id_maquina: maquina.id_maquina,
-      descripcion: datos.descripcion,
-      frecuencia_horas: datos.frecuencia_horas,
-      frecuencia_dias: datos.frecuencia_dias,
-      dias_aviso: datos.dias_aviso,
-      horas_aviso: datos.horas_aviso,
-      horas_ultimo_mant: horasUltimo,
-      fecha_ultimo_mant: aFecha(fechaUltimo),
-      proximo_mant: proximo,
-    },
+    data,
     include: conMaquina,
   });
 
@@ -268,9 +271,12 @@ preventivosRouter.patch("/:id", soloAdmin, async (req, res) => {
         : null;
   }
 
+  const data = Object.fromEntries(
+      Object.entries({ ...datos, proximo_mant: proximo }).filter(([, v]) => v !== undefined),
+    ) as any;
   const actualizada = await prisma.programacionPreventiva.update({
     where: { id_programacion: params.id },
-    data: { ...datos, proximo_mant: proximo },
+    data,
     include: conMaquina,
   });
 

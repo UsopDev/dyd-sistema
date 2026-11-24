@@ -88,7 +88,10 @@ clientesRouter.post("/", soloAdmin, async (req, res) => {
     }
   }
 
-  const cliente = await prisma.cliente.create({ data: datos });
+  const data = Object.fromEntries(
+    Object.entries(datos).filter(([, v]) => v !== undefined),
+  ) as any;
+  const cliente = await prisma.cliente.create({ data });
   res.status(201).json({ cliente });
 });
 
