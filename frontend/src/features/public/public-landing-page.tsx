@@ -10,7 +10,6 @@ import {
   MapPin,
   Phone,
   Ruler,
-  ShieldCheck,
   Sparkles,
   Wrench,
 } from "lucide-react";
@@ -401,13 +400,6 @@ export function PublicLandingPage() {
                   </div>
                 </div>
                 <div className="flex gap-3">
-                  <ShieldCheck className="mt-0.5 h-4.5 w-4.5 shrink-0 text-blue-600" />
-                  <div>
-                    <dt className="font-semibold text-slate-900">RUC</dt>
-                    <dd className="mt-0.5 font-mono text-slate-600">20505403089</dd>
-                  </div>
-                </div>
-                <div className="flex gap-3">
                   <Factory className="mt-0.5 h-4.5 w-4.5 shrink-0 text-blue-600" />
                   <div>
                     <dt className="font-semibold text-slate-900">Razón social</dt>
@@ -585,7 +577,6 @@ export function PublicLandingPage() {
           </div>
           <div className="mt-10 flex flex-col gap-3 border-t border-white/10 pt-6 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
             <p>© {new Date().getFullYear()} DYD E.I.R.L. Todos los derechos reservados.</p>
-            <p>RUC 20505403089</p>
           </div>
         </div>
       </footer>
