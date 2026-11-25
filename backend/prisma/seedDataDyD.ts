@@ -483,14 +483,14 @@ async function main(): Promise<void> {
   }
   console.log(`  ${MAQUINAS.length} máquinas listas\n`);
 
+  // ── Usuario admin para movimientos y registros ──
+  const adminUser = await prisma.usuario.findFirst({ where: { rol: "ADMINISTRADOR" } });
+  if (!adminUser) throw new Error("No se encontró usuario administrador");
+  const idUsuarioAdmin = adminUser.id_usuario;
+
   // ── Materiales y stock inicial ──
   console.log("→ Creando materiales e inventario...");
   const idMateriales = new Map<string, string>();
-
-  // Usuario para los movimientos de inventario (admin)
-  const adminUser = await prisma.usuario.findFirst({ where: { rol: "ADMINISTRADOR" } });
-  if (!adminUser) throw new Error("No se encontró usuario administrador para los movimientos");
-  const idUsuarioMov = adminUser.id_usuario;
 
   for (const { clave, stock, ...datos } of MATERIALES) {
     const mat = await prisma.material.upsert({
@@ -504,7 +504,7 @@ async function main(): Promise<void> {
     await prisma.movimientoInventario.create({
       data: {
         id_material: mat.id_material,
-        id_usuario: idUsuarioMov,
+        id_usuario: idUsuarioAdmin,
         tipo: "ENTRADA",
         cantidad: stock,
         motivo: "Compra inicial de almacén",
@@ -524,6 +524,7 @@ async function main(): Promise<void> {
       await prisma.registroUso.create({
         data: {
           id_maquina: idMaq,
+          id_usuario_registrado: idUsuarioAdmin,
           horas: h,
           fecha: fechaDate(i + 1),
         },
@@ -575,6 +576,7 @@ async function main(): Promise<void> {
     const solicitud = await prisma.solicitud.create({
       data: {
         id_maquina: idMaquinas.get(e.maquina)!,
+        id_usuario_registrado: idUsuarioAdmin,
         tipo_servicio: e.tipo,
         descripcion: e.descripcion,
         prioridad: e.prioridad,
@@ -585,11 +587,14 @@ async function main(): Promise<void> {
 
     const codigo = solicitud.codigo;
 
+    let idDiagnostico = "";
+
     // Diagnóstico
     if (llega("EN_DIAGNOSTICO") && e.diagnostico) {
-      await prisma.diagnostico.create({
+      const diagnostico = await prisma.diagnostico.create({
         data: {
           id_solicitud: solicitud.id_solicitud,
+          id_maquina: idMaquinas.get(e.maquina)!,
           id_tecnico: idTecnico,
           estado_general: e.diagnostico.estado_general,
           fallas_detectadas: e.diagnostico.fallas_detectadas,
@@ -597,6 +602,7 @@ async function main(): Promise<void> {
           recomendaciones: e.diagnostico.recomendaciones ?? null,
         },
       });
+      idDiagnostico = diagnostico.id_diagnostico;
       await prisma.solicitud.update({
         where: { id_solicitud: solicitud.id_solicitud },
         data: { estado: "EN_DIAGNOSTICO" },
@@ -608,6 +614,7 @@ async function main(): Promise<void> {
       await prisma.cotizacion.create({
         data: {
           id_solicitud: solicitud.id_solicitud,
+          id_usuario: idUsuarioAdmin,
           observaciones: e.cotizacion.observaciones ?? null,
           detalles: {
             create: e.cotizacion.detalles.map((l, idx) =>
@@ -617,13 +624,13 @@ async function main(): Promise<void> {
                     descripcion: l.descripcion,
                     cantidad: l.cantidad,
                     precio_unitario: l.precio_unitario,
-                    orden: idx,
                   }
                 : {
                     tipo: "MATERIAL",
+                    descripcion: MATERIALES.find((m) => m.clave === l.material)?.nombre ?? l.material,
                     id_material: idMateriales.get(l.material)!,
                     cantidad: l.cantidad,
-                    orden: idx,
+                    precio_unitario: MATERIALES.find((m) => m.clave === l.material)?.precio_unitario ?? 0,
                   },
             ),
           },
@@ -642,8 +649,9 @@ async function main(): Promise<void> {
       const orden = await prisma.ordenTrabajo.create({
         data: {
           id_solicitud: solicitud.id_solicitud,
+          id_diagnostico: idDiagnostico,
           id_tecnico: idTecnico,
-          estado: "ASIGNADA",
+          estado: "PENDIENTE",
         },
       });
       idOrden = orden.id_orden_trabajo;
@@ -730,6 +738,7 @@ async function main(): Promise<void> {
         where: { id_solicitud: solicitud.id_solicitud },
         data: { fecha: fecha(2) },
       });
+    }
     if (idOrden) {
       await prisma.ordenTrabajo.updateMany({
         where: { id_solicitud: solicitud.id_solicitud },
