@@ -765,11 +765,15 @@ async function main(): Promise<void> {
   for (const t of TECNICOS_DEMO) console.log(`  ${t.nombres} ${t.apellidos} — ${t.email}`);
 }
 
-main()
-  .catch((error: unknown) => {
+async function run() {
+  try {
+    await main();
+  } catch (error: unknown) {
     console.error("\n✖ El seed se detuvo:", error instanceof Error ? error.message : error);
     process.exitCode = 1;
-  })
-  .finally(async () => {
+  } finally {
     await prisma.$disconnect();
-  });
+  }
+}
+
+run();
