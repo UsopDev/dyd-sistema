@@ -79,7 +79,6 @@ const materialSchema = z.object({
 type MaterialFormValues = z.infer<typeof materialSchema>;
 
 const VACIOS: MaterialFormValues = {
-  codigo: "",
   nombre: "",
   unidad: "unidad",
   stock_minimo: 0,
@@ -160,12 +159,11 @@ function MaterialFormDialog({
 
   const onSubmit = handleSubmit(async (values) => {
     const payload: MaterialPayload = {
-      codigo: textoONull(values.codigo),
       nombre: values.nombre.trim(),
       unidad: values.unidad.trim(),
       stock_minimo: values.stock_minimo,
       precio_unitario: values.precio_unitario ?? null,
-      ...(editando ? { activo: values.activo } : {}),
+      ...(editando ? { codigo: textoONull(values.codigo), activo: values.activo } : {}),
     };
 
     try {
@@ -220,9 +218,11 @@ function MaterialFormDialog({
       }
     >
       <form id="material-form" onSubmit={onSubmit} className="grid gap-4 sm:grid-cols-2">
-        <FormField label="Código" htmlFor="codigo" error={errors.codigo?.message}>
-          <Input id="codigo" placeholder="MAT-001" {...register("codigo")} />
-        </FormField>
+        {editando && (
+          <FormField label="Código" htmlFor="codigo" error={errors.codigo?.message}>
+            <Input id="codigo" placeholder="MAT-001" {...register("codigo")} />
+          </FormField>
+        )}
 
         <FormField
           label="Nombre"

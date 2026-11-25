@@ -8,6 +8,7 @@ import { aFecha, hoyLocal, sumarDias } from "../../lib/fechas.js";
 import { requireRol } from "../../middleware/auth.js";
 import type { SesionUsuario } from "../../lib/jwt.js";
 import { whereRangoFecha, rangosFechaCampos } from "../../lib/filtros.js";
+import { documentoInformeServicio } from "../../lib/documentos.js";
 import type { EstadoOrden } from "@prisma/client";
 
 export const ordenesRouter = Router();
@@ -64,8 +65,8 @@ const detalle = {
       tipo_servicio: true,
       prioridad: true,
       descripcion: true,
-      maquina: { select: { id_maquina: true, codigo: true, nombre: true } },
-      cliente: { select: { id_cliente: true, razon_social: true } },
+      maquina: { select: { id_maquina: true, codigo: true, nombre: true, tipo: true, marca: true, modelo: true, nro_serie: true } },
+      cliente: { select: { id_cliente: true, razon_social: true, ruc_dni: true } },
     },
   },
   diagnostico: {
@@ -278,6 +279,62 @@ ordenesRouter.get("/:id", async (req, res) => {
   }
 
   res.json({ orden: conSubtotales(orden) });
+});
+
+// GET /:id/informe - Informe de servicio imprimible (RF12)
+ordenesRouter.get("/:id/informe", soloAdmin, async (req, res) => {
+  const params = validar(idSchema, req.params, res);
+  if (!params) return;
+
+  if (!(await ordenParaOperar(params.id, res))) return;
+
+  const orden = await prisma.ordenTrabajo.findUnique({
+    where: { id_orden_trabajo: params.id },
+    include: {
+      ...detalle,
+      diagnostico: {
+        select: {
+          estado_general: true,
+          fallas_detectadas: true,
+          recomendaciones: true,
+        },
+      },
+    },
+  });
+
+  if (!orden) {
+    res.status(404).json({ error: "Orden no encontrada" });
+    return;
+  }
+
+  if (orden.estado !== "FINALIZADA") {
+    res.status(409).json({ error: "Solo se puede emitir el informe de una orden FINALIZADA" });
+    return;
+  }
+
+  const html = documentoInformeServicio({
+    codigo: orden.codigo,
+    estado: orden.estado,
+    trabajo_realizado: orden.trabajo_realizado,
+    monto: orden.monto ? Number(orden.monto) : null,
+    fecha_inicio: orden.fecha_inicio,
+    fecha_fin: orden.fecha_fin,
+    solicitud: orden.solicitud,
+    diagnostico: orden.diagnostico,
+    tecnico: orden.tecnico,
+    materiales: orden.materiales.map((material) => ({
+      cantidad: Number(material.cantidad),
+      precio_unitario: material.precio_unitario ? Number(material.precio_unitario) : null,
+      subtotal:
+        material.precio_unitario === null
+          ? null
+          : (Number(material.cantidad) * Number(material.precio_unitario)).toFixed(2),
+      material: material.material,
+    })),
+  });
+
+  res.setHeader("Content-Type", "text/html; charset=utf-8");
+  res.send(html);
 });
 
 ordenesRouter.post("/:id/iniciar", async (req, res) => {

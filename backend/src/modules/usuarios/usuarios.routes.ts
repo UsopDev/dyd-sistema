@@ -7,8 +7,12 @@ import type { SesionUsuario } from "../../lib/jwt.js";
 import { whereRangoFecha, rangosFechaCampos } from "../../lib/filtros.js";
 import type { RolUsuario } from "@prisma/client";
 import { revocarTodosRefreshTokens } from "../../lib/refresh-tokens.js";
+import { requireRol } from "../../middleware/auth.js";
 
 export const usuariosRouter = Router();
+
+// La gestión de usuarios es exclusiva del Administrador.
+const soloAdmin = requireRol("ADMINISTRADOR");
 
 // Nunca se devuelve password_hash.
 const seleccion = {
@@ -95,7 +99,7 @@ usuariosRouter.get("/", async (req, res) => {
   res.json({ usuarios, total, pagina: filtros.pagina, limite: filtros.limite });
 });
 
-usuariosRouter.post("/", async (req, res) => {
+usuariosRouter.post("/", soloAdmin, async (req, res) => {
   const datos = validar(crearSchema, req.body, res);
   if (!datos) return;
 
@@ -138,7 +142,7 @@ usuariosRouter.get("/:id", async (req, res) => {
   res.json({ usuario });
 });
 
-usuariosRouter.patch("/:id", async (req, res) => {
+usuariosRouter.patch("/:id", soloAdmin, async (req, res) => {
   const params = validar(idSchema, req.params, res);
   if (!params) return;
 

@@ -12,6 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/components/ui/toast";
 import { mensajeDeError } from "@/lib/http";
 import { formatFechaHora } from "@/lib/format";
+import { useStaffAuth } from "@/features/auth/staff-auth";
 import {
   ETIQUETA_ESTADO_GENERAL,
   ETIQUETA_ESTADO_ORDEN,
@@ -275,6 +276,8 @@ function DiagnosticoFormDialog({
 }
 
 export function DiagnosticosPage() {
+  const { usuario } = useStaffAuth();
+  const esTecnico = usuario?.rol === "TECNICO";
   const [pagina, setPagina] = useState(1);
   const [estadoGeneral, setEstadoGeneral] = useState("");
 
@@ -382,7 +385,7 @@ export function DiagnosticosPage() {
           >
             <Eye className="h-4 w-4" />
           </Button>
-          {diagnostico.solicitud.estado === "EN_DIAGNOSTICO" && (
+          {esTecnico && diagnostico.solicitud.estado === "EN_DIAGNOSTICO" && (
             <Button
               type="button"
               variant="ghost"
@@ -404,10 +407,12 @@ export function DiagnosticosPage() {
         title="Diagnósticos"
         description="Evaluación técnica de las solicitudes recibidas."
       >
-        <Button type="button" onClick={abrirCrear}>
-          <Plus className="h-4 w-4" />
-          Nuevo diagnóstico
-        </Button>
+        {esTecnico && (
+          <Button type="button" onClick={abrirCrear}>
+            <Plus className="h-4 w-4" />
+            Nuevo diagnóstico
+          </Button>
+        )}
       </PageHeader>
 
       <GlassCard className="p-4">
@@ -467,6 +472,7 @@ export function DiagnosticosPage() {
         size="lg"
         footer={
           detalle.data &&
+          esTecnico &&
           detalle.data.solicitud.estado === "EN_DIAGNOSTICO" ? (
             <Button
               type="button"

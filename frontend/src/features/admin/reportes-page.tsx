@@ -264,6 +264,7 @@ export function ReportesPage() {
   const [hasta, setHasta] = useState(() => hoyISO());
   const [exportando, setExportando] = useState<ReporteExportable | null>(null);
   const [tipoExport, setTipoExport] = useState<ReporteExportable>("resumen");
+  const [formatoExport, setFormatoExport] = useState<"csv" | "xlsx">("csv");
   const { toast } = useToast();
 
   const rangoInvalido = Boolean(desde && hasta && desde > hasta);
@@ -320,11 +321,11 @@ export function ReportesPage() {
     setExportando(tipoExport);
 
     try {
-      await dashboardApi.descargarCsv(
-        tipoExport,
-        desde || undefined,
-        hasta || undefined,
-      );
+      if (formatoExport === "xlsx") {
+        await dashboardApi.descargarXlsx(tipoExport, rango.desde, rango.hasta);
+      } else {
+        await dashboardApi.descargarCsv(tipoExport, rango.desde, rango.hasta);
+      }
       toast({
         title: "Reporte descargado",
         description: EXPORTABLES.find((item) => item.value === tipoExport)?.label,
@@ -511,7 +512,7 @@ export function ReportesPage() {
           <div className="flex flex-col gap-2 sm:flex-row sm:items-end">
             <label className="block">
               <span className="mb-1 block text-[11px] font-bold uppercase tracking-[0.08em] text-slate-400">
-                Reporte CSV
+                Reporte
               </span>
               <Select
                 value={tipoExport}
@@ -526,6 +527,38 @@ export function ReportesPage() {
                     {item.label}
                   </option>
                 ))}
+              </Select>
+            </label>
+            <label className="block sm:hidden">
+              <span className="mb-1 block text-[11px] font-bold uppercase tracking-[0.08em] text-slate-400">
+                Formato
+              </span>
+              <Select
+                value={formatoExport}
+                onChange={(event) =>
+                  setFormatoExport(event.target.value as "csv" | "xlsx")
+                }
+                aria-label="Formato de exportación"
+                className="w-full"
+              >
+                <option value="csv">CSV</option>
+                <option value="xlsx">Excel (.xlsx)</option>
+              </Select>
+            </label>
+            <label className="hidden sm:block">
+              <span className="mb-1 block text-[11px] font-bold uppercase tracking-[0.08em] text-slate-400">
+                Formato
+              </span>
+              <Select
+                value={formatoExport}
+                onChange={(event) =>
+                  setFormatoExport(event.target.value as "csv" | "xlsx")
+                }
+                aria-label="Formato de exportación"
+                className="sm:w-[140px]"
+              >
+                <option value="csv">CSV</option>
+                <option value="xlsx">Excel (.xlsx)</option>
               </Select>
             </label>
             <Button

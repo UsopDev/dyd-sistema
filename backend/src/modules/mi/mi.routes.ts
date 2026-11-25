@@ -4,7 +4,7 @@ import { prisma } from "../../lib/prisma.js";
 import { validar } from "../../lib/validar.js";
 import { requireAuth } from "../../middleware/auth.js";
 import { whereRangoFecha, rangosFechaCampos } from "../../lib/filtros.js";
-import type { EstadoSolicitud, EstadoOrden } from "@prisma/client";
+import type { EstadoSolicitud, EstadoOrden, Prisma } from "@prisma/client";
 
 export const miRouter = Router();
 
@@ -44,7 +44,9 @@ const resumenOrden = {
 
 /**
  * GET /api/mi/solicitudes
- * Solicitudes donde el técnico está asignado (via diagnóstico u orden)
+ * Solicitudes visibles para el técnico:
+ *  - las que están RECIBIDA y aún no fueron diagnostiquées (cola de diagnóstico),
+ *  - las que ya tienen un diagnóstico u orden asignado a este técnico.
  */
 miRouter.get("/solicitudes", async (req, res) => {
   const filtros = validar(listarSolicitudesSchema, req.query, res) as
@@ -60,10 +62,13 @@ miRouter.get("/solicitudes", async (req, res) => {
 
   const sesion = res.locals.sesion as { id: string; rol: string };
 
-  const where = {
+  const where: Prisma.SolicitudWhereInput = {
     AND: [
       {
         OR: [
+          // Cola de diagnóstico: solicitudes nuevas que ningún técnico tomó aún.
+          { estado: "RECIBIDA", diagnostico: null },
+          // Solicitudes ya cerradas con diagnóstico u orden de este técnico.
           { diagnostico: { id_tecnico: sesion.id } },
           { orden_trabajo: { id_tecnico: sesion.id } },
         ],
@@ -103,7 +108,9 @@ miRouter.get("/solicitudes", async (req, res) => {
 
 /**
  * GET /api/mi/solicitudes/:id
- * Detalle de solicitud (solo si es del técnico)
+ * Detalle de solicitud visible para el técnico:
+ *  - RECIBIDA sin diagnóstico (cola de diagnóstico),
+ *  - o con diagnóstico / orden asignado a este técnico.
  */
 miRouter.get("/solicitudes/:id", async (req, res) => {
   const params = validar(idSchema, req.params, res);
@@ -115,6 +122,7 @@ miRouter.get("/solicitudes/:id", async (req, res) => {
     where: {
       id_solicitud: params.id,
       OR: [
+        { estado: "RECIBIDA", diagnostico: null },
         { diagnostico: { id_tecnico: sesion.id } },
         { orden_trabajo: { id_tecnico: sesion.id } },
       ],
@@ -256,8 +264,12 @@ miRouter.get("/dashboard", async (_req, res) => {
     }),
     prisma.solicitud.count({
       where: {
-        diagnostico: { id_tecnico: sesion.id },
-        estado: "EN_DIAGNOSTICO",
+        OR: [
+          // Cola de diagnóstico: solicitudes nuevas aún sin tomar.
+          { estado: "RECIBIDA", diagnostico: null },
+          // Diagnósticos propios que la solicitud aún no superó.
+          { diagnostico: { id_tecnico: sesion.id }, estado: "EN_DIAGNOSTICO" },
+        ],
       },
     }),
   ]);

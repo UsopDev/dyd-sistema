@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Eye } from "lucide-react";
+import { Eye, Stethoscope } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -37,7 +37,7 @@ const LIMITE = 20;
 export function TechnicianSolicitudesPage({
   estadoInicial,
   titulo = "Mis solicitudes",
-  descripcion = "Solicitudes donde estás asignado como técnico.",
+  descripcion = "Solicitudes nuevas para diagnosticar y las que tenés asignadas.",
 }: {
   estadoInicial?: EstadoSolicitud;
   titulo?: string;
@@ -49,6 +49,7 @@ export function TechnicianSolicitudesPage({
   const [prioridad, setPrioridad] = useState("");
   const [tipo, setTipo] = useState("");
   const [detalleId, setDetalleId] = useState<string | null>(null);
+  const [abrirFormDiagnostico, setAbrirFormDiagnostico] = useState(false);
   const qDebounced = useDebouncedValue(q);
 
   useEffect(() => {
@@ -138,18 +139,35 @@ export function TechnicianSolicitudesPage({
       headerClassName: "text-right",
       className: "text-right",
       cell: (solicitud) => (
-        <Button
-          type="button"
-          variant="ghost"
-          size="sm"
-          onClick={(event) => {
-            event.stopPropagation();
-            setDetalleId(solicitud.id_solicitud);
-          }}
-          aria-label={`Ver ${solicitud.codigo ?? "solicitud"}`}
-        >
-          <Eye className="h-4 w-4" />
-        </Button>
+        <div className="flex items-center justify-end gap-1">
+          {solicitud.estado === "RECIBIDA" && (
+            <Button
+              type="button"
+              size="sm"
+              onClick={(event) => {
+                event.stopPropagation();
+                setDetalleId(solicitud.id_solicitud);
+                setAbrirFormDiagnostico(true);
+              }}
+            >
+              <Stethoscope className="mr-1.5 h-3.5 w-3.5" />
+              Diagnosticar
+            </Button>
+          )}
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            onClick={(event) => {
+              event.stopPropagation();
+              setDetalleId(solicitud.id_solicitud);
+              setAbrirFormDiagnostico(false);
+            }}
+            aria-label={`Ver ${solicitud.codigo ?? "solicitud"}`}
+          >
+            <Eye className="h-4 w-4" />
+          </Button>
+        </div>
       ),
     },
   ];
@@ -201,9 +219,12 @@ export function TechnicianSolicitudesPage({
               : null
           }
           onRetry={() => void consulta.refetch()}
-          onRowClick={(solicitud) => setDetalleId(solicitud.id_solicitud)}
-          emptyTitle="No tenés solicitudes asignadas"
-          emptyDescription="Cuando te asignen un diagnóstico u orden, la solicitud va a aparecer acá."
+          onRowClick={(solicitud) => {
+            setDetalleId(solicitud.id_solicitud);
+            setAbrirFormDiagnostico(false);
+          }}
+          emptyTitle="No hay solicitudes para mostrar"
+          emptyDescription="No hay solicitudes nuevas para diagnosticar ni asignadas a vos en este momento."
           minWidth="1040px"
           footer={
             <TablePagination
@@ -219,7 +240,11 @@ export function TechnicianSolicitudesPage({
 
       <DetalleSolicitudTecnicoModal
         id={detalleId}
-        onClose={() => setDetalleId(null)}
+        onClose={() => {
+          setDetalleId(null);
+          setAbrirFormDiagnostico(false);
+        }}
+        abrirFormAlCargar={abrirFormDiagnostico}
       />
     </div>
   );

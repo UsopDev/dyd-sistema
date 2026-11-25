@@ -1,10 +1,15 @@
-import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { tecnicoApi } from "@/lib/technician-api";
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  tecnicoApi,
+  type PayloadDiagnostico,
+} from "@/lib/technician-api";
 import type { FiltrosAdmin } from "@/types/admin";
+import type { DiagnosticoTecnico } from "@/types/technician";
 
 export const tecnicoKeys = {
   dashboard: ["tecnico", "dashboard"] as const,
   solicitudes: {
+    todas: ["tecnico", "solicitudes"] as const,
     lista: (filtros: FiltrosAdmin) =>
       ["tecnico", "solicitudes", "lista", filtros] as const,
     detalle: (id: string) => ["tecnico", "solicitudes", "detalle", id] as const,
@@ -13,6 +18,7 @@ export const tecnicoKeys = {
     lista: (filtros: FiltrosAdmin) =>
       ["tecnico", "ordenes", "lista", filtros] as const,
   },
+  diagnosticos: ["tecnico", "diagnosticos"] as const,
 };
 
 export function useDashboardTecnico() {
@@ -44,5 +50,36 @@ export function useMisOrdenes(filtros: FiltrosAdmin) {
     queryKey: tecnicoKeys.ordenes.lista(filtros),
     queryFn: () => tecnicoApi.ordenes(filtros),
     placeholderData: keepPreviousData,
+  });
+}
+
+export function useCrearDiagnostico() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: PayloadDiagnostico & { id_solicitud: string }) =>
+      tecnicoApi.diagnosticos.crear(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: tecnicoKeys.solicitudes.todas });
+      queryClient.invalidateQueries({ queryKey: tecnicoKeys.diagnosticos });
+    },
+  });
+}
+
+export function useActualizarDiagnostico() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      id,
+      payload,
+    }: {
+      id: string;
+      payload: Partial<PayloadDiagnostico>;
+    }) => tecnicoApi.diagnosticos.actualizar(id, payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: tecnicoKeys.solicitudes.todas });
+      queryClient.invalidateQueries({ queryKey: tecnicoKeys.diagnosticos });
+    },
   });
 }

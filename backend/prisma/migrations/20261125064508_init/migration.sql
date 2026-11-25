@@ -41,18 +41,6 @@ CREATE TABLE "usuarios" (
 );
 
 -- CreateTable
-CREATE TABLE "tokens_refresco" (
-    "id_token" UUID NOT NULL DEFAULT gen_random_uuid(),
-    "id_usuario" UUID NOT NULL,
-    "token_hash" VARCHAR(255) NOT NULL,
-    "expira_en" TIMESTAMP(3) NOT NULL,
-    "revocado" BOOLEAN NOT NULL DEFAULT false,
-    "creado_en" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "tokens_refresco_pkey" PRIMARY KEY ("id_token")
-);
-
--- CreateTable
 CREATE TABLE "clientes" (
     "id_cliente" UUID NOT NULL DEFAULT gen_random_uuid(),
     "razon_social" VARCHAR(150) NOT NULL,
@@ -270,6 +258,9 @@ CREATE UNIQUE INDEX "usuarios_email_key" ON "usuarios"("email");
 CREATE UNIQUE INDEX "clientes_ruc_dni_key" ON "clientes"("ruc_dni");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "clientes_email_key" ON "clientes"("email");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "maquinas_codigo_key" ON "maquinas"("codigo");
 
 -- CreateIndex
@@ -316,9 +307,6 @@ CREATE UNIQUE INDEX "orden_materiales_id_orden_trabajo_id_material_key" ON "orde
 
 -- CreateIndex
 CREATE INDEX "movimientos_inventario_id_material_fecha_idx" ON "movimientos_inventario"("id_material", "fecha");
-
--- AddForeignKey
-ALTER TABLE "tokens_refresco" ADD CONSTRAINT "tokens_refresco_id_usuario_fkey" FOREIGN KEY ("id_usuario") REFERENCES "usuarios"("id_usuario") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "maquinas" ADD CONSTRAINT "maquinas_id_cliente_fkey" FOREIGN KEY ("id_cliente") REFERENCES "clientes"("id_cliente") ON DELETE SET NULL ON UPDATE CASCADE;

@@ -6,6 +6,7 @@ import { siguienteCodigo } from "../../lib/codigos.js";
 import { requireRol } from "../../middleware/auth.js";
 import type { SesionUsuario } from "../../lib/jwt.js";
 import { whereRangoFecha, rangosFechaCampos } from "../../lib/filtros.js";
+import { documentoCotizacion } from "../../lib/documentos.js";
 
 export const cotizacionesRouter = Router();
 
@@ -201,7 +202,7 @@ cotizacionesRouter.get("/", async (req, res) => {
   res.json({ cotizaciones, total, pagina: filtros.pagina, limite: filtros.limite });
 });
 
-cotizacionesRouter.post("/", async (req, res) => {
+cotizacionesRouter.post("/", soloAdmin, async (req, res) => {
   const datos = validar(crearSchema, req.body, res);
   if (!datos) return;
 
@@ -272,6 +273,71 @@ cotizacionesRouter.get("/:id", async (req, res) => {
   }
 
   res.json({ cotizacion: conSubtotales(cotizacion) });
+});
+
+// GET /:id/documento - Documento imprimible de la cotización (RF7)
+cotizacionesRouter.get("/:id/documento", soloAdmin, async (req, res) => {
+  const params = validar(idSchema, req.params, res);
+  if (!params) return;
+
+  const cotizacion = await prisma.cotizacion.findUnique({
+    where: { id_cotizacion: params.id },
+    include: {
+      detalles: true,
+      tecnico: { select: { nombres: true, apellidos: true } },
+      solicitud: {
+        select: {
+          codigo: true,
+          tipo_servicio: true,
+          descripcion: true,
+          maquina: {
+            select: {
+              codigo: true,
+              nombre: true,
+              tipo: true,
+              marca: true,
+              modelo: true,
+              nro_serie: true,
+            },
+          },
+          cliente: {
+            select: {
+              razon_social: true,
+              ruc_dni: true,
+              contacto: true,
+              telefono: true,
+              direccion: true,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!cotizacion) {
+    res.status(404).json({ error: "Cotización no encontrada" });
+    return;
+  }
+
+  const html = documentoCotizacion({
+    codigo: cotizacion.codigo,
+    fecha: cotizacion.fecha,
+    total: Number(cotizacion.total),
+    observaciones: cotizacion.observaciones,
+    solicitud: cotizacion.solicitud,
+    tecnico: cotizacion.tecnico,
+    detalles: cotizacion.detalles.map((detalle) => ({
+      tipo: detalle.tipo,
+      descripcion: detalle.descripcion,
+      cantidad: Number(detalle.cantidad),
+      precio_unitario: detalle.precio_unitario ? Number(detalle.precio_unitario) : null,
+      subtotal:
+        (Number(detalle.cantidad) * Number(detalle.precio_unitario)).toFixed(2),
+    })),
+  });
+
+  res.setHeader("Content-Type", "text/html; charset=utf-8");
+  res.send(html);
 });
 
 // PATCH /:id - Editar cotización (solo ADMIN, solo si solicitud está COTIZADA)

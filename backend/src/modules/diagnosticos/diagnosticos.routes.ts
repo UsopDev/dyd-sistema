@@ -3,6 +3,7 @@ import { z } from "zod";
 import { prisma } from "../../lib/prisma.js";
 import { validar } from "../../lib/validar.js";
 import type { SesionUsuario } from "../../lib/jwt.js";
+import { requireRol } from "../../middleware/auth.js";
 import { adjuntosRouter } from "./adjuntos.routes.js";
 import { whereRangoFecha, rangosFechaCampos } from "../../lib/filtros.js";
 import type { EstadoGeneral } from "@prisma/client";
@@ -10,6 +11,10 @@ import type { EstadoGeneral } from "@prisma/client";
 export const diagnosticosRouter = Router();
 
 diagnosticosRouter.use("/:id/adjuntos", adjuntosRouter);
+
+// El diagnóstico técnico lo registra el personal técnico.
+// El administrador solo consulta (matriz de permisos del proyecto).
+const soloTecnico = requireRol("TECNICO");
 
 const estadoGeneralSchema = z.enum(["BUENO", "REGULAR", "MALO", "CRITICO"]);
 
@@ -82,7 +87,7 @@ diagnosticosRouter.get("/", async (req, res) => {
   res.json({ diagnosticos, total, pagina: filtros.pagina, limite: filtros.limite });
 });
 
-diagnosticosRouter.post("/", async (req, res) => {
+diagnosticosRouter.post("/", soloTecnico, async (req, res) => {
   const datos = validar(crearSchema, req.body, res);
   if (!datos) return;
 

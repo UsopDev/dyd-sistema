@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { Eye, Loader2, Pencil, Plus } from "lucide-react";
+import { Eye, Loader2, Pencil, Plus, Clock } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -23,6 +23,7 @@ import {
   useCrearMaquina,
   useMaquinaDetalle,
   useMaquinas,
+  useRegistrarUso,
 } from "@/features/admin/hooks/use-admin-queries";
 import { useDebouncedValue } from "@/features/admin/hooks/use-debounced-value";
 import { DataTable, type Column } from "@/features/admin/components/data-table";
@@ -348,10 +349,38 @@ export function MaquinasPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [maquinaEditando, setMaquinaEditando] = useState<Maquina | null>(null);
   const [detalleId, setDetalleId] = useState<string | null>(null);
+  const [usoMaquinaId, setUsoMaquinaId] = useState<string | null>(null);
 
   const detalle = useMaquinaDetalle(detalleId);
   const maquinas = consulta.data?.maquinas ?? [];
   const total = consulta.data?.total ?? 0;
+
+  const registrarUso = useRegistrarUso();
+
+  const usoSchema = z.object({
+    fecha: z.string().min(1, "La fecha es obligatoria").refine((f) => !isNaN(new Date(f).getTime()), "Fecha inválida"),
+    horas: z.coerce
+      .number("Ingresá un número")
+      .min(0.1, "Mínimo 0.1 horas")
+      .max(24, "Máximo 24 horas"),
+  });
+  type UsoFormValues = z.infer<typeof usoSchema>;
+
+  const usoForm = useForm<UsoFormValues>({
+    resolver: zodResolver(usoSchema),
+    defaultValues: { fecha: new Date().toISOString().slice(0, 10), horas: 1 },
+  });
+
+  const onSubmitUso = usoForm.handleSubmit(async (values) => {
+    try {
+      await registrarUso.mutateAsync({ id_maquina: usoMaquinaId!, fecha: values.fecha, horas: values.horas });
+      toast({ title: "Uso registrado", description: `Horas añadidas a la máquina.`, variant: "success" });
+      usoForm.reset({ fecha: new Date().toISOString().slice(0, 10), horas: 1 });
+      setUsoMaquinaId(null);
+    } catch (error) {
+      toast({ title: "No se pudo registrar", description: mensajeDeError(error), variant: "error" });
+    }
+  });
 
   const abrirCrear = () => {
     setMaquinaEditando(null);
@@ -520,17 +549,30 @@ export function MaquinasPage() {
         size="lg"
         footer={
           detalle.data ? (
-            <Button
-              type="button"
-              variant="secondary"
-              onClick={() => {
-                setDetalleId(null);
-                abrirEditar(detalle.data!);
-              }}
-            >
-              <Pencil className="h-4 w-4" />
-              Editar
-            </Button>
+            <>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => {
+                  setDetalleId(null);
+                  setUsoMaquinaId(detalle.data!.id_maquina);
+                }}
+              >
+                <Clock className="h-4 w-4" />
+                Registrar uso
+              </Button>
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => {
+                  setDetalleId(null);
+                  abrirEditar(detalle.data!);
+                }}
+              >
+                <Pencil className="h-4 w-4" />
+                Editar
+              </Button>
+            </>
           ) : null
         }
       >
@@ -606,6 +648,70 @@ export function MaquinasPage() {
             </div>
           </div>
         ) : null}
+      </Modal>
+
+      {/* Modal Registrar Uso */}
+      <Modal
+        open={Boolean(usoMaquinaId)}
+        onClose={() => {
+          setUsoMaquinaId(null);
+          usoForm.reset();
+        }}
+        title="Registrar horas de uso"
+        description="Ingresá las horas de funcionamiento de la máquina en una fecha."
+        footer={
+          <>
+            <Button type="button" variant="secondary" onClick={() => {
+              setUsoMaquinaId(null);
+              usoForm.reset({ fecha: new Date().toISOString().slice(0, 10), horas: 1 });
+            }}>
+              Cancelar
+            </Button>
+            <Button
+              type="submit"
+              form="registrar-uso-form"
+              disabled={usoForm.isSubmitting}
+            >
+              {usoForm.isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+              Guardar registro
+            </Button>
+          </>
+        }
+      >
+        <form id="registrar-uso-form" onSubmit={usoForm.handleSubmit(onSubmitUso)} className="grid gap-4">
+          <FormField
+            label="Fecha"
+            htmlFor="fecha_uso"
+            error={usoForm.formState.errors.fecha?.message}
+            required
+          >
+            <Input
+              id="fecha_uso"
+              type="date"
+              max={new Date().toISOString().slice(0, 10)}
+              {...usoForm.register("fecha", {
+                setValueAs: (v) => (v ? new Date(v).toISOString().slice(0, 10) : undefined),
+              })}
+            />
+          </FormField>
+          <FormField
+            label="Horas"
+            htmlFor="horas_uso"
+            error={usoForm.formState.errors.horas?.message}
+            hint="Máximo 24 horas, un decimal."
+            required
+          >
+            <Input
+              id="horas_uso"
+              type="number"
+              min={0.1}
+              max={24}
+              step={0.1}
+              placeholder="Ej: 8.5"
+              {...usoForm.register("horas", { valueAsNumber: true })}
+            />
+          </FormField>
+        </form>
       </Modal>
     </div>
   );

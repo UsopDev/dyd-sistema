@@ -23,3 +23,27 @@ export async function siguienteCodigo(tipo: TipoCodigo): Promise<string> {
 
   return `${prefijo}-${new Date().getFullYear()}-${String(fila.n).padStart(5, "0")}`;
 }
+
+/**
+ * Genera un código alfanumérico de 6 caracteres único para materiales.
+ * Usa caracteres A-Z y 0-9 (sin O, I, 0, 1 para evitar confusiones).
+ */
+const CARACTERES = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+
+export async function generarCodigoMaterial(): Promise<string> {
+  const MAX_INTENTOS = 10;
+
+  for (let intento = 0; intento < MAX_INTENTOS; intento++) {
+    let codigo = "";
+    for (let i = 0; i < 6; i++) {
+      codigo += CARACTERES[Math.floor(Math.random() * CARACTERES.length)];
+    }
+
+    const existe = await prisma.material.findUnique({ where: { codigo } });
+    if (!existe) {
+      return codigo;
+    }
+  }
+
+  throw new Error("No se pudo generar un código único para el material tras varios intentos");
+}

@@ -14,12 +14,14 @@ import {
   ordenesApi,
   preventivosApi,
   solicitudesApi,
+  usoApi,
   usuariosApi,
 } from "@/lib/admin-api";
 import type {
   ActualizarCotizacionPayload,
   ActualizarPreventivoPayload,
   ActualizarSolicitudPayload,
+  ActualizarUsoPayload,
   ActualizarUsuarioPayload,
   ClientePayload,
   CotizacionPayload,
@@ -33,6 +35,7 @@ import type {
   OrdenMaterialPayload,
   OrdenPayload,
   PreventivoPayload,
+  RegistrarUsoPayload,
   SolicitudPayload,
 } from "@/types/admin";
 
@@ -99,6 +102,12 @@ export const adminKeys = {
     lista: (filtros: FiltrosAdmin) =>
       ["admin", "preventivos", "lista", filtros] as const,
     detalle: (id: string) => ["admin", "preventivos", "detalle", id] as const,
+    alertas: (idMaquina?: string) =>
+      ["admin", "preventivos", "alertas", idMaquina ?? ""] as const,
+  },
+  uso: {
+    lista: (filtros: FiltrosAdmin) =>
+      ["admin", "uso", "lista", filtros] as const,
   },
   usuarios: {
     lista: (filtros: FiltrosAdmin) =>
@@ -130,11 +139,17 @@ export function useSolicitudDetalle(id: string | null) {
   });
 }
 
-export function useSolicitudesOpciones(estado?: EstadoSolicitud) {
+export function useSolicitudesOpciones(estado?: EstadoSolicitud | "all") {
+  const filtroEstado = estado === "all" ? undefined : estado;
   return useQuery({
-    queryKey: adminKeys.solicitudes.opciones(estado),
-    queryFn: () => solicitudesApi.listar({ estado, limite: 100 }),
-    select: (respuesta) => respuesta.solicitudes,
+    queryKey: adminKeys.solicitudes.opciones(estado ?? "all"),
+    queryFn: () => solicitudesApi.listar({ estado: filtroEstado, limite: 100 }),
+    select: (respuesta) =>
+      respuesta.solicitudes.filter((s) =>
+        estado === "all" || !estado
+          ? s.estado === "EN_DIAGNOSTICO" || s.estado === "COTIZADA"
+          : s.estado === estado,
+      ),
     staleTime: 15_000,
   });
 }
@@ -586,6 +601,68 @@ export function useDesactivarPreventivo() {
 
   return useMutation({
     mutationFn: (id: string) => preventivosApi.desactivar(id),
+    onSuccess: () => invalidarAdmin(queryClient),
+  });
+}
+
+export function useAlertasPreventivas(idMaquina?: string) {
+  return useQuery({
+    queryKey: adminKeys.preventivos.alertas(idMaquina),
+    queryFn: () => preventivosApi.alertas(idMaquina),
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useForzarEnvioAlertas() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: () => preventivosApi.forzarEnvioAlertas(),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: adminKeys.preventivos.alertas() });
+    },
+  });
+}
+
+// ==================== USO ====================
+
+export function useRegistrosUso(filtros: FiltrosAdmin) {
+  return useQuery({
+    queryKey: ["admin", "uso", "lista", filtros] as const,
+    queryFn: () => usoApi.listar(filtros),
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useRegistrarUso() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: RegistrarUsoPayload) => usoApi.registrar(payload),
+    onSuccess: () => invalidarAdmin(queryClient),
+  });
+}
+
+export function useActualizarUso() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({
+      id,
+      payload,
+    }: {
+      id: string;
+      payload: ActualizarUsoPayload;
+    }) => usoApi.actualizar(id, payload),
+    onSuccess: () => invalidarAdmin(queryClient),
+  });
+}
+
+export function useEliminarUso() {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (id: string) => usoApi.eliminar(id),
     onSuccess: () => invalidarAdmin(queryClient),
   });
 }

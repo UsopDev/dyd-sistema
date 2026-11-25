@@ -184,7 +184,7 @@ function CotizacionFormDialog({
 }) {
   const crear = useCrearCotizacion();
   const actualizar = useActualizarCotizacion();
-  const solicitudes = useSolicitudesOpciones("EN_DIAGNOSTICO");
+  const solicitudes = useSolicitudesOpciones("all");
   const materiales = useMaterialesOpciones();
   const detalle = useCotizacionDetalle(open ? cotizacionId : null);
   const { toast } = useToast();

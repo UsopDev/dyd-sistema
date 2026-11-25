@@ -460,6 +460,40 @@ export interface ListaPreventivos {
   total: number;
 }
 
+// ==================== USO ====================
+
+export interface RegistroUso {
+  id_registro_uso: string;
+  id_maquina: string;
+  id_usuario_registrado: string;
+  horas: string;
+  fecha: string;
+  creado_en: string;
+  maquina: ResumenMaquina;
+  usuario: {
+    id_usuario: string;
+    nombres: string;
+    apellidos: string;
+  };
+  horas_uso_maquina?: string;
+}
+
+export interface ListaRegistrosUso {
+  registros: RegistroUso[];
+  total: number;
+}
+
+export interface RegistrarUsoPayload {
+  id_maquina: string;
+  horas: number;
+  fecha?: string;
+}
+
+export interface ActualizarUsoPayload {
+  horas?: number;
+  fecha?: string;
+}
+
 // ==================== USUARIOS ====================
 
 export interface UsuarioAdmin {

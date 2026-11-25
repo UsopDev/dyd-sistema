@@ -5,20 +5,20 @@ import { validar } from "../../lib/validar.js";
 import { requireRol } from "../../middleware/auth.js";
 import type { SesionUsuario } from "../../lib/jwt.js";
 import { whereRangoFecha, rangosFechaCampos } from "../../lib/filtros.js";
+import { generarCodigoMaterial } from "../../lib/codigos.js";
 
 export const materialesRouter = Router();
 
 const soloAdmin = requireRol("ADMINISTRADOR");
-
-const texto = (max: number) => z.string().trim().min(1).max(max).nullable().optional();
 
 const MAXIMO = 99999999.99;
 
 const idSchema = z.object({ id: z.uuid() });
 
 // El stock_actual no se envía aquí: solo cambia mediante movimientos.
+// El código se genera automáticamente si no se proporciona.
 const crearSchema = z.object({
-  codigo: texto(30),
+  codigo: z.string().trim().max(30).optional(),
   nombre: z.string().trim().min(1).max(100),
   unidad: z.string().trim().min(1).max(20),
   stock_minimo: z.number().min(0).max(MAXIMO).optional(),
@@ -115,8 +115,12 @@ materialesRouter.post("/", soloAdmin, async (req, res) => {
   const datos = validar(crearSchema, req.body, res);
   if (!datos) return;
 
-  if (datos.codigo) {
-    const repetido = await prisma.material.findUnique({ where: { codigo: datos.codigo } });
+  // Si no se proporciona código, generamos uno único de 6 caracteres
+  let codigo = datos.codigo;
+  if (!codigo) {
+    codigo = await generarCodigoMaterial();
+  } else {
+    const repetido = await prisma.material.findUnique({ where: { codigo } });
     if (repetido) {
       res.status(409).json({ error: "Ya existe un material con ese código" });
       return;
@@ -124,7 +128,7 @@ materialesRouter.post("/", soloAdmin, async (req, res) => {
   }
 
   const data = Object.fromEntries(
-    Object.entries(datos).filter(([, v]) => v !== undefined),
+    Object.entries({ ...datos, codigo }).filter(([, v]) => v !== undefined),
   ) as any;
   const material = await prisma.material.create({ data });
   res.status(201).json({ material });

@@ -6,6 +6,7 @@ import { siguienteCodigo } from "../../lib/codigos.js";
 import { requireRol } from "../../middleware/auth.js";
 import type { SesionUsuario } from "../../lib/jwt.js";
 import { whereRangoFecha, rangosFechaCampos } from "../../lib/filtros.js";
+import { calcularPrioridad, explicarPrioridad } from "../../lib/prioridad.js";
 import type { EstadoSolicitud, TipoServicio, Prioridad } from "@prisma/client";
 
 export const solicitudesRouter = Router();
@@ -38,6 +39,7 @@ const actualizarSchema = z
   .object({
     descripcion: z.string().trim().min(5).max(2000).optional(),
     prioridad: prioridadSchema.optional(),
+    id_programacion: z.uuid().nullable().optional(),
   })
   .refine((datos) => Object.keys(datos).length > 0, { message: "Envía al menos un campo" });
 
@@ -105,7 +107,7 @@ solicitudesRouter.get("/", async (req, res) => {
   res.json({ solicitudes, total, pagina: filtros.pagina, limite: filtros.limite });
 });
 
-solicitudesRouter.post("/", async (req, res) => {
+solicitudesRouter.post("/", soloAdmin, async (req, res) => {
   const datos = validar(crearSchema, req.body, res);
   if (!datos) return;
 
@@ -118,23 +120,40 @@ solicitudesRouter.post("/", async (req, res) => {
     return;
   }
 
+  let programacion: { proximo_mant: Date | null } | null = null;
+
   if (datos.id_programacion) {
     if (datos.tipo_servicio !== "PREVENTIVO") {
       res.status(400).json({ error: "Solo una solicitud preventiva puede tener programación" });
       return;
     }
 
-    const programacion = await prisma.programacionPreventiva.findUnique({
+    const encontrada = await prisma.programacionPreventiva.findUnique({
       where: { id_programacion: datos.id_programacion },
     });
 
-    if (!programacion || programacion.id_maquina !== maquina.id_maquina || !programacion.activo) {
+    if (!encontrada || encontrada.id_maquina !== maquina.id_maquina || !encontrada.activo) {
       res.status(400).json({
         error: "La programación indicada no existe, está inactiva o es de otra máquina",
       });
       return;
     }
+
+    programacion = encontrada;
   }
+
+  // La prioridad se calcula en el servidor con las reglas del dominio.
+  // La que envia el usuario solo es una sugerencia: el servidor decide.
+  const contextoPrioridad = {
+    esPropia: maquina.es_propia,
+    estadoMaquina: maquina.estado,
+    tipoServicio: datos.tipo_servicio,
+    proximoMantenimiento: programacion?.proximo_mant ?? null,
+    prioridadSugerida: datos.prioridad ?? null,
+  };
+
+  const prioridad = calcularPrioridad(contextoPrioridad);
+  const motivos = explicarPrioridad(contextoPrioridad);
 
   const solicitud = await prisma.solicitud.create({
     data: {
@@ -144,13 +163,16 @@ solicitudesRouter.post("/", async (req, res) => {
       id_usuario_registrado: sesion.id,
       tipo_servicio: datos.tipo_servicio,
       descripcion: datos.descripcion,
-      prioridad: datos.prioridad,
+      prioridad,
       id_programacion: datos.id_programacion,
     },
     include: resumen,
   });
 
-  res.status(201).json({ solicitud });
+  res.status(201).json({
+    solicitud,
+    ...(motivos.length > 0 ? { prioridad_asignada: { prioridad, motivos } } : {}),
+  });
 });
 
 solicitudesRouter.get("/:id", async (req, res) => {
@@ -183,23 +205,50 @@ solicitudesRouter.patch("/:id", soloAdmin, async (req, res) => {
   const datos = validar(actualizarSchema, req.body, res);
   if (!datos) return;
 
+  const existente = await prisma.solicitud.findUnique({
+    where: { id_solicitud: params.id },
+    include: { maquina: true },
+  });
+
+  if (!existente) {
+    res.status(404).json({ error: "Solicitud no encontrada" });
+    return;
+  }
+
+  if (existente.estado !== "RECIBIDA") {
+    res.status(409).json({ error: "Solo se puede editar una solicitud en estado RECIBIDA" });
+    return;
+  }
+
+  // La prioridad se recalcula en el servidor con las reglas del dominio.
+  let programacion: { proximo_mant: Date | null } | null = null;
+  const idProgramacion = datos.id_programacion ?? existente.id_programacion;
+
+  if (idProgramacion) {
+    programacion = await prisma.programacionPreventiva.findUnique({
+      where: { id_programacion: idProgramacion },
+      select: { proximo_mant: true },
+    });
+  }
+
+  const contextoPrioridad = {
+    esPropia: existente.maquina.es_propia,
+    estadoMaquina: existente.maquina.estado,
+    tipoServicio: existente.tipo_servicio,
+    proximoMantenimiento: programacion?.proximo_mant ?? null,
+    prioridadSugerida: datos.prioridad ?? existente.prioridad,
+  };
+
+  const prioridad = calcularPrioridad(contextoPrioridad);
+  const motivos = explicarPrioridad(contextoPrioridad);
+
   // La condición de estado va dentro del UPDATE: si otro proceso la movió, no se modifica.
   const actualizadas = await prisma.solicitud.updateMany({
     where: { id_solicitud: params.id, estado: "RECIBIDA" },
-    data: datos,
+    data: { ...datos, prioridad },
   });
 
   if (actualizadas.count === 0) {
-    const existe = await prisma.solicitud.findUnique({
-      where: { id_solicitud: params.id },
-      select: { id_solicitud: true },
-    });
-
-    if (!existe) {
-      res.status(404).json({ error: "Solicitud no encontrada" });
-      return;
-    }
-
     res.status(409).json({ error: "Solo se puede editar una solicitud en estado RECIBIDA" });
     return;
   }
@@ -209,7 +258,10 @@ solicitudesRouter.patch("/:id", soloAdmin, async (req, res) => {
     include: resumen,
   });
 
-  res.json({ solicitud });
+  res.json({
+    solicitud,
+    ...(motivos.length > 0 ? { prioridad_asignada: { prioridad, motivos } } : {}),
+  });
 });
 
 solicitudesRouter.post("/:id/cancelar", soloAdmin, async (req, res) => {

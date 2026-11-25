@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { GlassCard } from "@/components/ui/glass-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorState } from "@/features/admin/components/states";
@@ -62,6 +63,17 @@ export function TechnicianDashboardPage() {
   const solicitudes = useMisSolicitudes({ limite: 100 });
   const ordenes = useMisOrdenes({ limite: 100 });
   const [detalleId, setDetalleId] = useState<string | null>(null);
+  const [abrirFormDiagnostico, setAbrirFormDiagnostico] = useState(false);
+
+  const abrirDetalle = (id: string, conFormulario = false) => {
+    setDetalleId(id);
+    setAbrirFormDiagnostico(conFormulario);
+  };
+
+  const cerrarDetalle = () => {
+    setDetalleId(null);
+    setAbrirFormDiagnostico(false);
+  };
 
   const error = dashboard.error ?? solicitudes.error ?? ordenes.error;
   const cargando =
@@ -127,7 +139,9 @@ export function TechnicianDashboardPage() {
   const cola = (solicitudes.data?.solicitudes ?? [])
     .filter(
       (solicitud) =>
-        solicitud.estado === "ASIGNADA" || solicitud.estado === "EN_PROCESO",
+        solicitud.estado === "RECIBIDA" ||
+        solicitud.estado === "ASIGNADA" ||
+        solicitud.estado === "EN_PROCESO",
     )
     .slice(0, 5);
 
@@ -171,7 +185,7 @@ export function TechnicianDashboardPage() {
                   <p className="mt-0.5 text-xs text-slate-500">
                     Tenés {formatNumber(diagnosticosPendientes)}{" "}
                     {diagnosticosPendientes === 1 ? "solicitud" : "solicitudes"}{" "}
-                    con diagnóstico en curso.
+                    para diagnosticar o con diagnóstico en curso.
                   </p>
                 </div>
               </div>
@@ -193,7 +207,8 @@ export function TechnicianDashboardPage() {
                     Cola de trabajo
                   </h2>
                   <p className="mt-0.5 text-xs text-slate-500">
-                    Solicitudes asignadas o en proceso.
+                    Solicitudes nuevas para diagnosticar y las asignadas o en
+                    proceso.
                   </p>
                 </div>
                 <Link
@@ -218,11 +233,14 @@ export function TechnicianDashboardPage() {
               ) : (
                 <ul className="mt-3 divide-y divide-slate-100">
                   {cola.map((solicitud) => (
-                    <li key={solicitud.id_solicitud}>
+                    <li
+                      key={solicitud.id_solicitud}
+                      className="flex items-center justify-between gap-3 py-3"
+                    >
                       <button
                         type="button"
-                        onClick={() => setDetalleId(solicitud.id_solicitud)}
-                        className="flex w-full items-center justify-between gap-3 py-3 text-left transition hover:bg-blue-50/40"
+                        onClick={() => abrirDetalle(solicitud.id_solicitud)}
+                        className="flex min-w-0 flex-1 items-center justify-between gap-3 text-left transition hover:text-blue-700"
                       >
                         <div className="min-w-0">
                           <p className="text-sm font-semibold text-slate-900">
@@ -245,6 +263,19 @@ export function TechnicianDashboardPage() {
                           <ChevronRight className="h-4 w-4 text-slate-300" />
                         </div>
                       </button>
+                      {solicitud.estado === "RECIBIDA" && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          onClick={() =>
+                            abrirDetalle(solicitud.id_solicitud, true)
+                          }
+                          className="shrink-0"
+                        >
+                          <Stethoscope className="mr-1.5 h-3.5 w-3.5" />
+                          Diagnosticar
+                        </Button>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -286,7 +317,7 @@ export function TechnicianDashboardPage() {
                     <li key={orden.id_orden_trabajo}>
                       <button
                         type="button"
-                        onClick={() => setDetalleId(orden.id_solicitud)}
+                        onClick={() => abrirDetalle(orden.id_solicitud)}
                         className="flex w-full items-center justify-between gap-3 py-3 text-left transition hover:bg-blue-50/40"
                       >
                         <div className="min-w-0">
@@ -339,7 +370,8 @@ export function TechnicianDashboardPage() {
 
       <DetalleSolicitudTecnicoModal
         id={detalleId}
-        onClose={() => setDetalleId(null)}
+        onClose={cerrarDetalle}
+        abrirFormAlCargar={abrirFormDiagnostico}
       />
     </div>
   );

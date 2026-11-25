@@ -4,6 +4,7 @@ import { prisma } from "../../lib/prisma.js";
 import { validar } from "../../lib/validar.js";
 import { requireRol } from "../../middleware/auth.js";
 import { whereRangoFecha } from "../../lib/filtros.js";
+import { aExcel, aExcelResumen } from "../../lib/excel.js";
 import type { EstadoSolicitud, TipoServicio, Prioridad } from "@prisma/client";
 
 export const reportesRouter = Router();
@@ -496,7 +497,6 @@ function aCSV(data: unknown[]): string {
 reportesRouter.get("/exportar/:tipo", soloAdmin, async (req, res) => {
   const tipo = Array.isArray(req.params.tipo) ? req.params.tipo[0] : req.params.tipo;
   const format = Array.isArray(req.query.format) ? req.query.format[0] : req.query.format;
-  const fmt = format === "csv" ? "csv" : "json";
 
   const reportesDisponibles = [
     "solicitudes-por-estado",
@@ -653,7 +653,19 @@ reportesRouter.get("/exportar/:tipo", soloAdmin, async (req, res) => {
     return;
   }
 
-  if (fmt === "csv") {
+  const formato = format === "xlsx" ? "xlsx" : format === "csv" ? "csv" : "json";
+
+  if (formato === "xlsx") {
+    let buffer: Buffer;
+    if ("data" in resultado && Array.isArray((resultado as { data: unknown[] }).data)) {
+      buffer = await aExcel((resultado as { data: unknown[] }).data);
+    } else {
+      buffer = await aExcelResumen(resultado as Record<string, unknown>);
+    }
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", `attachment; filename="${tipo}-${new Date().toISOString().slice(0, 10)}.xlsx"`);
+    res.send(buffer);
+  } else if (formato === "csv") {
     let csvData: string;
     if ("data" in resultado && Array.isArray((resultado as { data: unknown[] }).data)) {
       csvData = aCSV((resultado as { data: unknown[] }).data);

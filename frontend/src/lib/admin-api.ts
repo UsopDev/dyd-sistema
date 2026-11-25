@@ -201,6 +201,30 @@ export const dashboardApi = {
     enlace.remove();
     URL.revokeObjectURL(url);
   },
+
+  descargarXlsx: async (
+    tipo: ReporteExportable,
+    desde?: string,
+    hasta?: string,
+  ): Promise<void> => {
+    const { data } = await staffApi.get<Blob>(`/reportes/exportar/${tipo}`, {
+      params: limpiar({
+        fecha_desde: desde,
+        fecha_hasta: hasta,
+        format: "xlsx",
+      }),
+      responseType: "blob",
+    });
+
+    const url = URL.createObjectURL(data);
+    const enlace = document.createElement("a");
+    enlace.href = url;
+    enlace.download = `${tipo}-${hoyISO()}.xlsx`;
+    document.body.appendChild(enlace);
+    enlace.click();
+    enlace.remove();
+    URL.revokeObjectURL(url);
+  },
 };
 
 /** Compatibilidad con la estructura pedida en el prompt. */
@@ -400,6 +424,27 @@ export const preventivosApi = {
       .preventivo,
 
   desactivar: (id: string) => eliminar(`/preventivos/${id}`),
+
+  alertas: (idMaquina?: string) =>
+    get<{ preventivos: Preventivo[]; total: number }>("/preventivos/alertas", { id_maquina: idMaquina }),
+
+  forzarEnvioAlertas: () =>
+    post<{ enviadas: number; omitidas: number; errores: string[] }>("/alertas-correo/enviar", {}),
+};
+
+// ==================== USO ====================
+
+export const usoApi = {
+  listar: (filtros?: FiltrosAdmin) =>
+    get<ListaRegistrosUso>("/uso", filtros),
+
+  registrar: async (payload: RegistrarUsoPayload) =>
+    (await post<{ registro: RegistroUso }>("/uso", payload)).registro,
+
+  actualizar: async (id: string, payload: ActualizarUsoPayload) =>
+    (await patch<{ registro: RegistroUso }>(`/uso/${id}`, payload)).registro,
+
+  eliminar: (id: string) => eliminar(`/uso/${id}`),
 };
 
 // ==================== USUARIOS ====================

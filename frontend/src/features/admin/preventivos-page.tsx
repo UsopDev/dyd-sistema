@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { Eye, Loader2, Pencil, Plus, Power } from "lucide-react";
+import { Eye, Loader2, Pencil, Plus, Power, Bell, CheckCircle } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -24,8 +24,10 @@ import {
 } from "@/lib/admin-labels";
 import {
   useActualizarPreventivo,
+  useAlertasPreventivas,
   useCrearPreventivo,
   useDesactivarPreventivo,
+  useForzarEnvioAlertas,
   useMaquinasOpciones,
   usePreventivoDetalle,
   usePreventivos,
@@ -55,16 +57,33 @@ const ESTADOS: Array<{ value: EstadoPreventivo; label: string }> = [
   { value: "VENCIDO", label: "Vencido" },
 ];
 
-const numeroOpcional = z
-  .number("Ingresá un número")
-  .min(0, "No puede ser negativo")
-  .optional();
+/**
+ * Normaliza el valor de un input numérico.
+ * Los inputs HTML devuelven string y valueAsNumber devuelve NaN cuando están vacíos;
+ * en ambos casos se traduce a undefined para distinguirlos de un 0 válido.
+ */
+const aNumero = (vacio: unknown) => {
+  if (vacio === undefined || vacio === null) return undefined;
+  if (typeof vacio === "string" && vacio.trim() === "") return undefined;
+  if (typeof vacio === "number" && Number.isNaN(vacio)) return undefined;
+  return vacio;
+};
 
-const enteroOpcionalPositivo = z
-  .number("Ingresá un número")
-  .int("Debe ser un número entero")
-  .positive("Debe ser mayor a cero")
-  .optional();
+// Nota: en Zod 4 `z.preprocess` devuelve un ZodPipe sin métodos encadenables
+// (.min/.int/.optional), así que las reglas van dentro del schema interno.
+const numeroOpcional = z.preprocess(
+  aNumero,
+  z.number("Ingresá un número").min(0, "No puede ser negativo").optional(),
+);
+
+const enteroOpcionalPositivo = z.preprocess(
+  aNumero,
+  z
+    .number("Ingresá un número")
+    .int("Debe ser un número entero")
+    .positive("Debe ser mayor a cero")
+    .optional(),
+);
 
 const preventivoSchema = z
   .object({
@@ -76,12 +95,15 @@ const preventivoSchema = z
       .max(200, "Máximo 200 caracteres"),
     frecuencia_horas: enteroOpcionalPositivo,
     frecuencia_dias: enteroOpcionalPositivo,
-    dias_aviso: z
-      .number("Ingresá un número")
-      .int("Debe ser entero")
-      .min(0, "No puede ser negativo")
-      .max(365, "Máximo 365 días")
-      .optional(),
+    dias_aviso: z.preprocess(
+      aNumero,
+      z
+        .number("Ingresá un número")
+        .int("Debe ser entero")
+        .min(0, "No puede ser negativo")
+        .max(365, "Máximo 365 días")
+        .optional(),
+    ),
     horas_aviso: numeroOpcional,
     horas_ultimo_mant: numeroOpcional,
     fecha_ultimo_mant: z.string().optional(),
@@ -302,7 +324,7 @@ function PreventivoFormDialog({
             min={1}
             step="1"
             placeholder="250"
-            {...register("frecuencia_horas")}
+            {...register("frecuencia_horas", { valueAsNumber: true })}
           />
         </FormField>
 
@@ -318,7 +340,7 @@ function PreventivoFormDialog({
             min={1}
             step="1"
             placeholder="90"
-            {...register("frecuencia_dias")}
+            {...register("frecuencia_dias", { valueAsNumber: true })}
           />
         </FormField>
 
@@ -334,7 +356,7 @@ function PreventivoFormDialog({
             min={0}
             max={365}
             step="1"
-            {...register("dias_aviso")}
+            {...register("dias_aviso", { valueAsNumber: true })}
           />
         </FormField>
 
@@ -349,7 +371,7 @@ function PreventivoFormDialog({
             type="number"
             min={0}
             step="0.1"
-            {...register("horas_aviso")}
+            {...register("horas_aviso", { valueAsNumber: true })}
           />
         </FormField>
 
@@ -367,7 +389,7 @@ function PreventivoFormDialog({
                 min={0}
                 step="0.1"
                 placeholder="0"
-                {...register("horas_ultimo_mant")}
+                {...register("horas_ultimo_mant", { valueAsNumber: true })}
               />
             </FormField>
 
@@ -418,6 +440,7 @@ export function PreventivosPage() {
     activo: activo || undefined,
     id_maquina: idMaquina || undefined,
   });
+  const alertas = useAlertasPreventivas();
   const maquinas = useMaquinasOpciones();
 
   const [formOpen, setFormOpen] = useState(false);
@@ -429,6 +452,7 @@ export function PreventivosPage() {
 
   const detalle = usePreventivoDetalle(detalleId);
   const desactivar = useDesactivarPreventivo();
+  const forzarAlertas = useForzarEnvioAlertas();
 
   const todos = consulta.data?.preventivos ?? [];
   const totalLocal = todos.length;
@@ -630,6 +654,77 @@ export function PreventivosPage() {
             className="sm:min-w-[220px]"
           />
         </FiltersBar>
+      </GlassCard>
+
+      {/* Panel de Alertas Preventivas */}
+      <GlassCard className="overflow-hidden">
+        <div className="flex items-center justify-between p-5">
+          <div className="flex items-center gap-3">
+            <Bell className="h-5 w-5 text-amber-600" />
+            <h3 className="text-base font-semibold text-slate-900">Alertas de mantenimiento</h3>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => forzarAlertas.mutate()}
+            disabled={forzarAlertas.isPending}
+          >
+            {forzarAlertas.isPending && <Loader2 className="h-4 w-4 animate-spin mr-1" />}
+            Forzar envío de alertas
+          </Button>
+        </div>
+        <div className="border-t border-slate-100">
+          {alertas.isLoading ? (
+            <div className="p-5 space-y-3">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton key={i} className="h-12 w-full" />
+              ))}
+            </div>
+          ) : alertas.error ? (
+            <div className="p-5 text-sm text-rose-600">
+              {mensajeDeError(alertas.error)}
+            </div>
+          ) : alertas.data && alertas.data.preventivos.length > 0 ? (
+            <div className="divide-y divide-slate-100">
+              {alertas.data.preventivos.map((preventivo) => (
+                <div key={preventivo.id_programacion} className="p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${
+                      preventivo.estado_mantenimiento.estado === "VENCIDO" ? "bg-rose-500" :
+                      preventivo.estado_mantenimiento.estado === "PROXIMO" ? "bg-amber-500" : "bg-emerald-500"
+                    }`} />
+                    <div className="min-w-0">
+                      <p className="font-medium text-slate-900 truncate">{preventivo.maquina.nombre}</p>
+                      <p className="text-xs text-slate-500 truncate">
+                        {preventivo.maquina.codigo ? `Código: ${preventivo.maquina.codigo}` : "Sin código"}
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <Badge variant={
+                      preventivo.estado_mantenimiento.estado === "VENCIDO" ? "destructive" :
+                      preventivo.estado_mantenimiento.estado === "PROXIMO" ? "warning" : "success"
+                    }>
+                      {ETIQUETA_ESTADO_PREVENTIVO[preventivo.estado_mantenimiento.estado]}
+                    </Badge>
+                    <div className="text-xs text-slate-500 whitespace-nowrap">
+                      Próximo: {preventivo.proximo_mant ? formatFecha(preventivo.proximo_mant) : "Sin fecha"}
+                    </div>
+                    <div className="text-xs text-slate-500 whitespace-nowrap">
+                      Horas: {formatCantidad(preventivo.maquina.horas_uso)}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="p-8 text-center text-slate-500">
+              <CheckCircle className="h-10 w-10 mx-auto text-emerald-500" />
+              <p className="mt-2 font-medium">Sin alertas pendientes</p>
+              <p className="text-sm">Todos los mantenimientos están al día.</p>
+            </div>
+          )}
+        </div>
       </GlassCard>
 
       <GlassCard className="overflow-hidden">

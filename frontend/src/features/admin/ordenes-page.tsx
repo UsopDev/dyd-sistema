@@ -444,7 +444,7 @@ function AgregarMaterialForm({
           type="number"
           min={0.01}
           step="0.01"
-          {...register("cantidad")}
+          {...register("cantidad", { valueAsNumber: true })}
         />
       </FormField>
 

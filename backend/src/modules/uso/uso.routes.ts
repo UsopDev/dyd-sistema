@@ -3,9 +3,14 @@ import { z } from "zod";
 import { prisma } from "../../lib/prisma.js";
 import { validar } from "../../lib/validar.js";
 import { aFecha, hoyLocal } from "../../lib/fechas.js";
+import { requireRol } from "../../middleware/auth.js";
 import type { SesionUsuario } from "../../lib/jwt.js";
 
 export const usoRouter = Router();
+
+// El registro de horas de uso lo realiza el Administrador (caso de uso 08).
+// Cualquier usuario autenticado puede consultar el historial.
+const soloAdmin = requireRol("ADMINISTRADOR");
 
 const crearSchema = z.object({
   id_maquina: z.uuid(),
@@ -74,7 +79,7 @@ usoRouter.get("/", async (req, res) => {
   res.json({ registros, total, pagina: filtros.pagina, limite: filtros.limite });
 });
 
-usoRouter.post("/", async (req, res) => {
+usoRouter.post("/", soloAdmin, async (req, res) => {
   const datos = validar(crearSchema, req.body, res);
   if (!datos) return;
 
@@ -120,7 +125,7 @@ usoRouter.post("/", async (req, res) => {
 });
 
 // PATCH /:id - Editar registro de uso (solo autor o ADMIN)
-usoRouter.patch("/:id", async (req, res) => {
+usoRouter.patch("/:id", soloAdmin, async (req, res) => {
   const params = validar(idSchema, req.params, res);
   if (!params) return;
 
@@ -183,7 +188,7 @@ usoRouter.patch("/:id", async (req, res) => {
 });
 
 // DELETE /:id - Eliminar registro de uso (solo autor o ADMIN)
-usoRouter.delete("/:id", async (req, res) => {
+usoRouter.delete("/:id", soloAdmin, async (req, res) => {
   const params = validar(idSchema, req.params, res);
   if (!params) return;
 
