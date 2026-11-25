@@ -65,7 +65,7 @@ const PILARES = [
       "Más de una década de trabajo metalmecánico en el Callao, con clientes del sector manufacturero.",
   },
   {
-    icono: ShieldCheck,
+    icono: ClipboardCheck,
     titulo: "Calidad y compromiso",
     descripcion:
       "Cada trabajo sale documentado: diagnóstico, cotización, orden de trabajo e informe de servicio.",
