@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from "react";
-import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
-import { Eye, EyeOff, Loader2, LockKeyhole, Mail } from "lucide-react";
+import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
+import { ArrowLeft, Eye, EyeOff, Loader2, LockKeyhole, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -55,6 +55,15 @@ export function StaffLoginPage() {
     <AuthLayout
       title="Iniciar sesión"
       subtitle="Acceso para administradores y técnicos."
+      footer={
+        <Link
+          to="/"
+          className="inline-flex items-center gap-1.5 text-slate-500 transition-colors hover:text-slate-800"
+        >
+          <ArrowLeft className="h-3.5 w-3.5" />
+          Volver al sitio público
+        </Link>
+      }
     >
       <form className="space-y-4" onSubmit={manejarEnvio}>
         <div className="space-y-1.5">

@@ -4,25 +4,6 @@ import { FullPageLoader } from "@/components/ui/full-page-loader";
 import type { RolUsuario } from "@/types/api";
 import { useStaffAuth } from "./staff-auth";
 
-export function RootRedirect() {
-  const staff = useStaffAuth();
-
-  if (staff.cargando) {
-    return <FullPageLoader />;
-  }
-
-  if (staff.usuario) {
-    return (
-      <Navigate
-        to={staff.usuario.rol === "ADMINISTRADOR" ? "/admin" : "/tecnico"}
-        replace
-      />
-    );
-  }
-
-  return <Navigate to="/login" replace />;
-}
-
 export function RequireStaff({
   roles,
   children,

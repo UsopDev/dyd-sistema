@@ -1,8 +1,9 @@
 import { Route, Routes } from "react-router-dom";
 import { StaffLayout } from "@/components/layout/staff-layout";
-import { RequireStaff, RootRedirect } from "@/features/auth/guards";
+import { RequireStaff } from "@/features/auth/guards";
 import { StaffAuthProvider } from "@/features/auth/staff-auth";
 import { StaffLoginPage } from "@/features/auth/staff-login-page";
+import { PublicLandingPage } from "@/features/public/public-landing-page";
 import { AdminDashboardPage } from "@/features/dashboard/admin-dashboard-page";
 import { TechnicianDashboardPage } from "@/features/dashboard/technician-dashboard-page";
 import { TechnicianOrdenesPage } from "@/features/technician/technician-ordenes-page";
@@ -24,7 +25,7 @@ export function App() {
   return (
     <StaffAuthProvider>
       <Routes>
-        <Route path="/" element={<RootRedirect />} />
+        <Route path="/" element={<PublicLandingPage />} />
         <Route path="/login" element={<StaffLoginPage />} />
         <Route path="/403" element={<ForbiddenPage />} />
 

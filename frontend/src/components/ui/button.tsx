@@ -1,5 +1,11 @@
 import { cva, type VariantProps } from "class-variance-authority";
-import type { ButtonHTMLAttributes } from "react";
+import {
+  cloneElement,
+  isValidElement,
+  type ButtonHTMLAttributes,
+  type ReactElement,
+  type ReactNode,
+} from "react";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
@@ -32,10 +38,35 @@ const buttonVariants = cva(
 
 export interface ButtonProps
   extends ButtonHTMLAttributes<HTMLButtonElement>,
-    VariantProps<typeof buttonVariants> {}
+    VariantProps<typeof buttonVariants> {
+  /**
+   * Renderiza el hijo en lugar de un <button>. Útil para envolver <Link> o <a>
+   * conservando el estilo del botón.
+   */
+  asChild?: boolean;
+  children?: ReactNode;
+}
 
-export function Button({ className, variant, size, ...props }: ButtonProps) {
+export function Button({
+  className,
+  variant,
+  size,
+  asChild = false,
+  children,
+  ...props
+}: ButtonProps) {
+  const classes = cn(buttonVariants({ variant, size }), className);
+
+  if (asChild && isValidElement(children)) {
+    const child = children as ReactElement<{ className?: string }>;
+    return cloneElement(child, {
+      className: cn(classes, child.props.className),
+    });
+  }
+
   return (
-    <button className={cn(buttonVariants({ variant, size }), className)} {...props} />
+    <button className={classes} {...props}>
+      {children}
+    </button>
   );
 }
