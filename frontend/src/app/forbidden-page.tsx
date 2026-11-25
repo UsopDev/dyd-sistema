@@ -3,20 +3,16 @@ import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { GlassCard } from "@/components/ui/glass-card";
 import { Logo } from "@/components/ui/logo";
-import { useClientAuth } from "@/features/auth/client-auth";
 import { useStaffAuth } from "@/features/auth/staff-auth";
 
 export function ForbiddenPage() {
   const { usuario } = useStaffAuth();
-  const { cliente } = useClientAuth();
 
   const destino = usuario
     ? usuario.rol === "ADMINISTRADOR"
       ? "/admin"
       : "/tecnico"
-    : cliente
-      ? "/cliente"
-      : "/login";
+    : "/login";
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center px-5 py-10">

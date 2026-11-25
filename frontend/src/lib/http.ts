@@ -76,10 +76,6 @@ export function createStaffApi(onSessionExpired: () => void): AxiosInstance {
   return crearApi("/auth/refresh", onSessionExpired);
 }
 
-export function createClientApi(onSessionExpired: () => void): AxiosInstance {
-  return crearApi("/cliente/auth/refresh", onSessionExpired);
-}
-
 export function mensajeDeError(
   error: unknown,
   porDefecto = "Ocurrió un error inesperado",

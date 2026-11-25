@@ -2,27 +2,21 @@ import axios, { AxiosError, AxiosInstance, InternalAxiosRequestConfig } from "ax
 
 const API_BASE = "/api";
 
-type Realm = "staff" | "cliente";
-
 interface RefreshState {
   promise: Promise<void> | null;
-  realm: Realm;
 }
 
-const refreshState: Record<Realm, RefreshState> = {
-  staff: { promise: null, realm: "staff" },
-  cliente: { promise: null, realm: "cliente" },
-};
+const refreshState: RefreshState = { promise: null };
 
-function getRefreshEndpoint(realm: Realm): string {
-  return realm === "staff" ? "/api/auth/refresh" : "/api/cliente/auth/refresh";
+function getRefreshEndpoint(): string {
+  return "/api/auth/refresh";
 }
 
-function getMeEndpoint(realm: Realm): string {
-  return realm === "staff" ? "/api/auth/me" : "/api/cliente/auth/me";
+function getMeEndpoint(): string {
+  return "/api/auth/me";
 }
 
-function createApiClient(realm: Realm): AxiosInstance {
+function createApiClient(): AxiosInstance {
   const client = axios.create({
     baseURL: API_BASE,
     withCredentials: true,
@@ -36,9 +30,7 @@ function createApiClient(realm: Realm): AxiosInstance {
       const url = config.url ?? "";
       if (
         url.includes("/auth/login") ||
-        url.includes("/auth/refresh") ||
-        url.includes("/cliente/auth/login") ||
-        url.includes("/cliente/auth/refresh")
+        url.includes("/auth/refresh")
       ) {
         return config;
       }
@@ -52,35 +44,33 @@ function createApiClient(realm: Realm): AxiosInstance {
     (response) => response,
     async (error: AxiosError) => {
       const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
-      
+
       if (error.response?.status === 401 && !originalRequest._retry) {
         originalRequest._retry = true;
-        
-        const state = refreshState[realm];
-        
+
         // Single-flight: if refresh already in progress, wait for it
-        if (!state.promise) {
-          state.promise = (async () => {
+        if (!refreshState.promise) {
+          refreshState.promise = (async () => {
             try {
-              await axios.post(getRefreshEndpoint(realm), {}, { withCredentials: true });
+              await axios.post(getRefreshEndpoint(), {}, { withCredentials: true });
               // Refresh succeeded, verify session
-              await axios.get(getMeEndpoint(realm), { withCredentials: true });
+              await axios.get(getMeEndpoint(), { withCredentials: true });
             } catch {
               // Refresh failed, clear any cached state
-              throw new Error(`Sesión expirada (${realm})`);
+              throw new Error("Sesión expirada (staff)");
             } finally {
-              state.promise = null;
+              refreshState.promise = null;
             }
           })();
         }
-        
+
         try {
-          await state.promise;
+          await refreshState.promise;
           // Retry original request
           return client(originalRequest);
         } catch {
-          // Redirect to appropriate login
-          const loginPath = realm === "staff" ? "/login" : "/cliente/login";
+          // Redirect to login
+          const loginPath = "/login";
           const currentPath = window.location.pathname + window.location.search;
           if (!currentPath.startsWith(loginPath)) {
             window.location.href = `${loginPath}?redirect=${encodeURIComponent(currentPath)}`;
@@ -88,7 +78,7 @@ function createApiClient(realm: Realm): AxiosInstance {
           throw error;
         }
       }
-      
+
       return Promise.reject(error);
     },
   );
@@ -96,20 +86,18 @@ function createApiClient(realm: Realm): AxiosInstance {
   return client;
 }
 
-export const staffApi = createApiClient("staff");
-export const clienteApi = createApiClient("cliente");
+export const staffApi = createApiClient();
 
 // Helper to check if we're authenticated without triggering redirect
-export async function checkAuth(realm: Realm): Promise<boolean> {
+export async function checkAuth(): Promise<boolean> {
   try {
-    await axios.get(getMeEndpoint(realm), { withCredentials: true });
+    await axios.get(getMeEndpoint(), { withCredentials: true });
     return true;
   } catch {
     return false;
   }
 }
 
-export async function logout(realm: Realm): Promise<void> {
-  const endpoint = realm === "staff" ? "/api/auth/logout" : "/api/cliente/auth/logout";
-  await axios.post(endpoint, {}, { withCredentials: true });
+export async function logout(): Promise<void> {
+  await axios.post("/api/auth/logout", {}, { withCredentials: true });
 }

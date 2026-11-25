@@ -8,22 +8,8 @@ export interface Usuario {
   rol: RolUsuario;
 }
 
-export interface ClienteSesion {
-  id_cliente: string;
-  razon_social: string;
-  email: string | null;
-  contacto: string | null;
-  telefono?: string | null;
-  direccion?: string | null;
-  activo?: boolean;
-}
-
 export interface RespuestaLoginStaff {
   usuario: Usuario;
-}
-
-export interface RespuestaLoginCliente {
-  cliente: ClienteSesion;
 }
 
 export interface RespuestaError {

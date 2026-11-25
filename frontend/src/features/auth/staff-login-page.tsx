@@ -1,5 +1,5 @@
 import { useState, type FormEvent } from "react";
-import { Link, Navigate, useNavigate, useSearchParams } from "react-router-dom";
+import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { Eye, EyeOff, Loader2, LockKeyhole, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -53,20 +53,8 @@ export function StaffLoginPage() {
 
   return (
     <AuthLayout
-      portal="staff"
       title="Iniciar sesión"
       subtitle="Acceso para administradores y técnicos."
-      footer={
-        <>
-          ¿Sos cliente?{" "}
-          <Link
-            to="/cliente/login"
-            className="font-semibold text-blue-700 hover:text-blue-800"
-          >
-            Ingresá al portal de clientes
-          </Link>
-        </>
-      }
     >
       <form className="space-y-4" onSubmit={manejarEnvio}>
         <div className="space-y-1.5">

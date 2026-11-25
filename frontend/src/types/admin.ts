@@ -1,5 +1,4 @@
 import type {
-  ClienteSesion,
   EstadoMaquina,
   EstadoOrden,
   EstadoSolicitud,
@@ -590,4 +589,4 @@ export interface FiltrosAdmin {
 }
 
 /** Helper local para no repetir el tipo de `cliente` en varias vistas. */
-export type ClienteAdmin = Cliente | ClienteSesion;
+export type ClienteAdmin = Cliente;

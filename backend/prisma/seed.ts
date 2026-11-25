@@ -2,7 +2,8 @@ import { prisma } from "../src/lib/prisma.js";
 import { hashPassword } from "../src/lib/passwords.js";
 
 // Seed de desarrollo/demo.
-// Re-ejecutarlo restablece las contraseñas de los tres usuarios.
+// Re-ejecutarlo restablece las contraseñas de los dos usuarios del sistema.
+// El cliente NO accede al sistema: solo se guarda como registro de empresa cliente.
 
 function emailValido(
   valor: string | undefined,
@@ -48,14 +49,9 @@ const clienteEmail = emailValido(
   "DEMO_CLIENTE_EMAIL",
   "cliente@dyd.com",
 );
-const clientePassword = passwordValida(
-  process.env.DEMO_CLIENTE_PASSWORD ?? "Cliente1234",
-  "DEMO_CLIENTE_PASSWORD",
-);
 
 const adminHash = await hashPassword(adminPassword);
 const tecnicoHash = await hashPassword(tecnicoPassword);
-const clienteHash = await hashPassword(clientePassword);
 
 await prisma.usuario.upsert({
   where: { email: adminEmail },
@@ -89,10 +85,11 @@ await prisma.usuario.upsert({
   },
 });
 
+// El cliente es solo un registro de la empresa cliente: no accede al sistema.
+// Se crea como dato de prueba para que el administrador tenga registros de ejemplo.
 await prisma.cliente.upsert({
   where: { email: clienteEmail },
   update: {
-    password_hash: clienteHash,
     activo: true,
   },
   create: {
@@ -101,7 +98,6 @@ await prisma.cliente.upsert({
     contacto: "Contacto Demo",
     telefono: "999 888 777",
     email: clienteEmail,
-    password_hash: clienteHash,
     direccion: "Av. Industrial 123, Lima",
     activo: true,
   },
@@ -111,7 +107,6 @@ console.log("\nUsuarios demo listos. Re-ejecutar el seed restablece estas contra
 console.table([
   { Rol: "Administrador", Email: adminEmail, "Contraseña": adminPassword },
   { Rol: "Técnico", Email: tecnicoEmail, "Contraseña": tecnicoPassword },
-  { Rol: "Cliente", Email: clienteEmail, "Contraseña": clientePassword },
 ]);
 
 await prisma.$disconnect();

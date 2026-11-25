@@ -1,18 +1,9 @@
-import {
-  BarChart3,
-  CalendarClock,
-  ClipboardList,
-  Factory,
-  FileSearch,
-  Wrench,
-  type LucideIcon,
-} from "lucide-react";
+import { BarChart3, ClipboardList, Wrench, type LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { GlassCard } from "@/components/ui/glass-card";
 import { Logo } from "@/components/ui/logo";
 
 interface AuthLayoutProps {
-  portal: "staff" | "client";
   title: string;
   subtitle: string;
   children: ReactNode;
@@ -31,39 +22,25 @@ interface ContenidoPortal {
   caracteristicas: Caracteristica[];
 }
 
-const contenido: Record<AuthLayoutProps["portal"], ContenidoPortal> = {
-  staff: {
-    etiqueta: "Equipo DYD",
-    titulo: "Mantenimiento industrial, bajo control.",
-    descripcion:
-      "Gestioná solicitudes, diagnósticos, cotizaciones y órdenes de trabajo desde un solo lugar.",
-    caracteristicas: [
-      { icono: ClipboardList, texto: "Solicitudes y órdenes en tiempo real" },
-      { icono: Wrench, texto: "Diagnósticos con adjuntos y trazabilidad" },
-      { icono: BarChart3, texto: "Reportes operativos y financieros" },
-    ],
-  },
-  client: {
-    etiqueta: "Portal de clientes",
-    titulo: "Seguí tus equipos y servicios en tiempo real.",
-    descripcion:
-      "Consultá el estado de tus solicitudes, el historial de tus máquinas y los mantenimientos programados.",
-    caracteristicas: [
-      { icono: FileSearch, texto: "Estado de tus solicitudes" },
-      { icono: Factory, texto: "Historial de tus máquinas" },
-      { icono: CalendarClock, texto: "Mantenimientos preventivos programados" },
-    ],
-  },
+const contenido: ContenidoPortal = {
+  etiqueta: "Equipo DYD",
+  titulo: "Mantenimiento industrial, bajo control.",
+  descripcion:
+    "Gestioná solicitudes, diagnósticos, cotizaciones y órdenes de trabajo desde un solo lugar.",
+  caracteristicas: [
+    { icono: ClipboardList, texto: "Solicitudes y órdenes en tiempo real" },
+    { icono: Wrench, texto: "Diagnósticos con adjuntos y trazabilidad" },
+    { icono: BarChart3, texto: "Reportes operativos y financieros" },
+  ],
 };
 
 export function AuthLayout({
-  portal,
   title,
   subtitle,
   children,
   footer,
 }: AuthLayoutProps) {
-  const datos = contenido[portal];
+  const datos = contenido;
 
   return (
     <div className="min-h-screen lg:grid lg:grid-cols-[1.05fr_0.95fr]">

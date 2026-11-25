@@ -5,23 +5,13 @@
     "filesystem": {
       "enabled": true,
       "type": "local",
-      "command": [
-        "npx",
-        "-y",
-        "@modelcontextprotocol/server-filesystem",
-        "/home/yanira/proyectos/dyd-sistema/backend/"
-      ]
+      "command": ["npx", "-y", "@modelcontextprotocol/server-filesystem", "."]
     },
 
     "git": {
       "type": "local",
       "enabled": true,
-      "command": [
-        "uvx",
-        "mcp-server-git",
-        "--repository",
-        "/home/yanira/proyectos/dyd-sistema/"
-      ]
+      "command": ["uvx", "mcp-server-git", "--repository", "."]
     }
   }
 }

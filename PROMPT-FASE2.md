@@ -11,17 +11,16 @@ Copiá y pegalo cuando quieras arrancar la Fase 2.
 - Frontend: React 19 + Vite + TS strict + Tailwind 4 + shadcn/ui + Recharts + React Router 7 + TanStack Query v5 + axios (cookies HttpOnly). Corre en host: `cd frontend && npm run dev` → `http://localhost:5173`. Proxy Vite `/api` → `http://localhost:3000`.
 
 **Autenticación**
-- Dos realms: **staff** (`/api/auth/*`) y **cliente** (`/api/cliente/auth/*`).
-- Cookies: `access_token` (15 min) + `refresh_token` (7 días staff / 30 días cliente). HttpOnly, `sameSite=lax`, `secure=false` en dev.
-- Frontend: `StaffAuthProvider` + `ClientAuthProvider` → `GET /me` al iniciar; interceptors axios con **single-flight refresh** → 401 refresca y reintenta.
-- Guards: `RequireStaff({ roles })`, `RequireClient`, `RootRedirect`.
-- Logins: `/login` (staff) y `/cliente/login` (cliente).
+- **Un solo realm: staff** (`/api/auth/*`). El cliente de la empresa **no accede al sistema**: sus datos se registran en el módulo de clientes y recibe la cotización y el informe de servicio como documentos.
+- Cookies: `access_token` (15 min) + `refresh_token` (7 días). HttpOnly, `sameSite=lax`, `secure=false` en dev.
+- Frontend: `StaffAuthProvider` → `GET /api/auth/me` al iniciar; interceptor axios con **single-flight refresh** → 401 refresca y reintenta.
+- Guards: `RequireStaff({ roles })`, `RootRedirect`.
+- Login: `/login` (admin y técnico).
 
 **Rutas actuales**
 ```
-/admin        → AdminDashboardPage (MOCK: mock-data.ts)
-/tecnico      → TechnicianDashboardPage (placeholder "pronto")
-/cliente      → ClientDashboardPage (placeholder "pronto")
+/admin        → AdminDashboardPage (datos reales del backend)
+/tecnico      → TechnicianDashboardPage (datos reales del backend)
 ```
 
 **Usuarios demo** (creados con `npm run db:seed:docker` o `docker compose exec backend npx tsx prisma/seed.ts`)
@@ -30,7 +29,8 @@ Copiá y pegalo cuando quieras arrancar la Fase 2.
 | ------------- | ----------------- | ------------- |
 | Administrador | `admin@dyd.com`   | `Admin1234`   |
 | Técnico       | `tecnico@dyd.com` | `Tecnico1234` |
-| Cliente       | `cliente@dyd.com` | `Cliente1234` |
+
+El seed también crea un cliente demo como registro de empresa cliente (sin credenciales).
 
 ---
 
@@ -38,7 +38,7 @@ Copiá y pegalo cuando quieras arrancar la Fase 2.
 
 **Objetivo:** Conectar el **dashboard de administrador real** (reemplazar `mock-data.ts` por llamadas a `/api/reportes/*` y `/api/materiales/stock-bajo`) + **CRUDs completos** de las entidades admin.
 
-**Fase 1** (técnico/cliente solo lectura) se hace aparte; esta es **solo admin**.
+**Fase 1** (técnico solo lectura) se hace aparte; esta es **solo admin**.
 
 ---
 
@@ -158,7 +158,6 @@ frontend/src/
 ```
 Admin:   admin@dyd.com   / Admin1234
 Técnico: tecnico@dyd.com / Tecnico1234
-Cliente: cliente@dyd.com / Cliente1234
 ```
 
 ---
