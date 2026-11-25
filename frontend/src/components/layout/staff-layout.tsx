@@ -18,23 +18,23 @@ import { AppShell, type NavItem } from "./app-shell";
 
 const navAdmin: NavItem[] = [
   { label: "Panel", to: "/admin", icon: LayoutDashboard },
-  { label: "Solicitudes", to: "/admin/solicitudes", icon: ClipboardList, soon: true },
-  { label: "Diagnósticos", to: "/admin/diagnosticos", icon: Stethoscope, soon: true },
-  { label: "Cotizaciones", to: "/admin/cotizaciones", icon: Receipt, soon: true },
-  { label: "Órdenes de trabajo", to: "/admin/ordenes", icon: Wrench, soon: true },
-  { label: "Clientes", to: "/admin/clientes", icon: Building2, soon: true },
-  { label: "Máquinas", to: "/admin/maquinas", icon: Factory, soon: true },
-  { label: "Materiales", to: "/admin/materiales", icon: Package, soon: true },
-  { label: "Preventivos", to: "/admin/preventivos", icon: CalendarClock, soon: true },
-  { label: "Usuarios", to: "/admin/usuarios", icon: Users, soon: true },
-  { label: "Reportes", to: "/admin/reportes", icon: BarChart3, soon: true },
+  { label: "Solicitudes", to: "/admin/solicitudes", icon: ClipboardList },
+  { label: "Diagnósticos", to: "/admin/diagnosticos", icon: Stethoscope },
+  { label: "Cotizaciones", to: "/admin/cotizaciones", icon: Receipt },
+  { label: "Órdenes de trabajo", to: "/admin/ordenes", icon: Wrench },
+  { label: "Clientes", to: "/admin/clientes", icon: Building2 },
+  { label: "Máquinas", to: "/admin/maquinas", icon: Factory },
+  { label: "Materiales", to: "/admin/materiales", icon: Package },
+  { label: "Preventivos", to: "/admin/preventivos", icon: CalendarClock },
+  { label: "Usuarios", to: "/admin/usuarios", icon: Users },
+  { label: "Reportes", to: "/admin/reportes", icon: BarChart3 },
 ];
 
 const navTecnico: NavItem[] = [
   { label: "Panel", to: "/tecnico", icon: LayoutDashboard },
-  { label: "Mis solicitudes", to: "/tecnico/solicitudes", icon: ClipboardList, soon: true },
-  { label: "Mis órdenes", to: "/tecnico/ordenes", icon: Wrench, soon: true },
-  { label: "Diagnósticos", to: "/tecnico/diagnosticos", icon: Stethoscope, soon: true },
+  { label: "Mis solicitudes", to: "/tecnico/solicitudes", icon: ClipboardList },
+  { label: "Mis órdenes", to: "/tecnico/ordenes", icon: Wrench },
+  { label: "Diagnósticos", to: "/tecnico/diagnosticos", icon: Stethoscope },
 ];
 
 export function StaffLayout() {

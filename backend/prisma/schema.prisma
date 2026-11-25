@@ -115,7 +115,7 @@ model Cliente {
   creado_en       DateTime @default(now())
   actualizado_en  DateTime @default(now()) @updatedAt
 
-  maulas         Maquina[]
+  maquinas       Maquina[]
   solicitudes     Solicitud[]
   refresh_tokens  ClienteRefreshToken[]
 

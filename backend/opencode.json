@@ -9,7 +9,7 @@
         "npx",
         "-y",
         "@modelcontextprotocol/server-filesystem",
-        "/home/nicolas/Desktop/Udabol/HelpGrils/Yanira/dyd-sistema/backend/"
+        "/home/yanira/proyectos/dyd-sistema/backend/"
       ]
     },
 
@@ -20,7 +20,7 @@
         "uvx",
         "mcp-server-git",
         "--repository",
-        "/home/nicolas/Desktop/Udabol/HelpGrils/Yanira/dyd-sistema/"
+        "/home/yanira/proyectos/dyd-sistema/"
       ]
     }
   }

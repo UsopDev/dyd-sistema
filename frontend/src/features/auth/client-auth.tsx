@@ -6,6 +6,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { useLocation } from "react-router-dom";
 import { createClientApi } from "@/lib/http";
 import type { ClienteSesion, RespuestaLoginCliente } from "@/types/api";
 
@@ -19,12 +20,20 @@ interface ClientAuthValue {
 const ClientAuthContext = createContext<ClientAuthValue | null>(null);
 
 export function ClientAuthProvider({ children }: { children: ReactNode }) {
+  // El realm cliente solo se sondea donde puede haber sesión de cliente.
+  // Evita 401 innecesarios en el panel de staff (/admin, /tecnico, /login).
+  const { pathname } = useLocation();
+  const [debeRestaurar] = useState(
+    () => pathname === "/" || pathname.startsWith("/cliente"),
+  );
   const [cliente, setCliente] = useState<ClienteSesion | null>(null);
-  const [cargando, setCargando] = useState(true);
+  const [cargando, setCargando] = useState(debeRestaurar);
 
   const api = useMemo(() => createClientApi(() => setCliente(null)), []);
 
   useEffect(() => {
+    if (!debeRestaurar) return;
+
     let activo = true;
 
     api
@@ -42,7 +51,7 @@ export function ClientAuthProvider({ children }: { children: ReactNode }) {
     return () => {
       activo = false;
     };
-  }, [api]);
+  }, [api, debeRestaurar]);
 
   const iniciarSesion = async (email: string, password: string) => {
     const { data } = await api.post<RespuestaLoginCliente>(

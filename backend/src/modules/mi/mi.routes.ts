@@ -61,9 +61,23 @@ miRouter.get("/solicitudes", async (req, res) => {
   const sesion = res.locals.sesion as { id: string; rol: string };
 
   const where = {
-    OR: [
-      { diagnostico: { id_tecnico: sesion.id } },
-      { orden_trabajo: { id_tecnico: sesion.id } },
+    AND: [
+      {
+        OR: [
+          { diagnostico: { id_tecnico: sesion.id } },
+          { orden_trabajo: { id_tecnico: sesion.id } },
+        ],
+      },
+      ...(filtros.q
+        ? [
+            {
+              OR: [
+                { codigo: { contains: filtros.q, mode: "insensitive" as const } },
+                { descripcion: { contains: filtros.q, mode: "insensitive" as const } },
+              ],
+            },
+          ]
+        : []),
     ],
     ...(filtros.estado ? { estado: filtros.estado as EstadoSolicitud } : {}),
     ...(filtros.prioridad ? { prioridad: filtros.prioridad as "ALTA" | "MEDIA" | "BAJA" } : {}),
@@ -71,14 +85,6 @@ miRouter.get("/solicitudes", async (req, res) => {
     ...(filtros.id_maquina ? { id_maquina: filtros.id_maquina } : {}),
     ...whereRangoFecha("fecha_recepcion", filtros.fecha_recepcion_desde, filtros.fecha_recepcion_hasta),
     ...whereRangoFecha("actualizado_en", filtros.actualizado_en_desde, filtros.actualizado_en_hasta),
-    ...(filtros.q
-      ? {
-          OR: [
-            { codigo: { contains: filtros.q, mode: "insensitive" as const } },
-            { descripcion: { contains: filtros.q, mode: "insensitive" as const } },
-          ],
-        }
-      : {}),
   };
 
   const [solicitudes, total] = await Promise.all([

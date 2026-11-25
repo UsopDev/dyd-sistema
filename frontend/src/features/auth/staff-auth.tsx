@@ -6,6 +6,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { useLocation } from "react-router-dom";
 import { createStaffApi } from "@/lib/http";
 import type { RespuestaLoginStaff, Usuario } from "@/types/api";
 
@@ -19,12 +20,17 @@ interface StaffAuthValue {
 const StaffAuthContext = createContext<StaffAuthValue | null>(null);
 
 export function StaffAuthProvider({ children }: { children: ReactNode }) {
+  // El realm staff no aplica dentro del portal de cliente.
+  const { pathname } = useLocation();
+  const [debeRestaurar] = useState(() => !pathname.startsWith("/cliente"));
   const [usuario, setUsuario] = useState<Usuario | null>(null);
-  const [cargando, setCargando] = useState(true);
+  const [cargando, setCargando] = useState(debeRestaurar);
 
   const api = useMemo(() => createStaffApi(() => setUsuario(null)), []);
 
   useEffect(() => {
+    if (!debeRestaurar) return;
+
     let activo = true;
 
     api
@@ -42,7 +48,7 @@ export function StaffAuthProvider({ children }: { children: ReactNode }) {
     return () => {
       activo = false;
     };
-  }, [api]);
+  }, [api, debeRestaurar]);
 
   const iniciarSesion = async (email: string, password: string) => {
     const { data } = await api.post<RespuestaLoginStaff>("/auth/login", {

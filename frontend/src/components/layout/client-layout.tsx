@@ -6,8 +6,8 @@ import { AppShell, type NavItem } from "./app-shell";
 
 const navCliente: NavItem[] = [
   { label: "Panel", to: "/cliente", icon: LayoutDashboard },
-  { label: "Mis solicitudes", to: "/cliente/solicitudes", icon: ClipboardList, soon: true },
-  { label: "Mis máquinas", to: "/cliente/maquinas", icon: Factory, soon: true },
+  { label: "Mis solicitudes", to: "/cliente/solicitudes", icon: ClipboardList },
+  { label: "Mis máquinas", to: "/cliente/maquinas", icon: Factory },
 ];
 
 export function ClientLayout() {

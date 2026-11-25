@@ -1,13 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { NavLink, useLocation } from "react-router-dom";
-import {
-  ChevronRight,
-  LogOut,
-  Menu,
-  X,
-  type LucideIcon,
-} from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { ChevronRight, LogOut, Menu, X, type LucideIcon } from "lucide-react";
 import { Logo } from "@/components/ui/logo";
 import { cn } from "@/lib/utils";
 
@@ -192,9 +185,6 @@ export function AppShell({
             </div>
 
             <div className="ml-auto flex items-center gap-2">
-              <Badge variant="warning" className="hidden sm:inline-flex">
-                Datos demo
-              </Badge>
               <div className="hidden items-center gap-2 rounded-full bg-white/70 py-1 pl-1 pr-3 ring-1 ring-slate-200/70 sm:flex">
                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-blue-600 text-[10px] font-bold text-white">
                   {user.iniciales}
