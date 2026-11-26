@@ -6,8 +6,8 @@
 
 # Test info
 
-- Name: auth.spec.ts >> Autenticación y navegación por rol >> Acceso no autorizado >> técnico no puede acceder a rutas de admin
-- Location: e2e/auth.spec.ts:76:5
+- Name: solicitud-diagnostico.spec.ts >> Registro de Solicitud y Diagnóstico Técnico (E2E) >> Admin puede navegar a módulo de solicitudes
+- Location: e2e/solicitud-diagnostico.spec.ts:18:3
 
 # Error details
 

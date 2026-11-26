@@ -6,8 +6,8 @@
 
 # Test info
 
-- Name: auth.spec.ts >> Autenticación y navegación por rol >> Técnico >> iniciar sesión → navegar dashboard técnico → cerrar sesión
-- Location: e2e/auth.spec.ts:48:5
+- Name: solicitud-diagnostico.spec.ts >> Registro de Solicitud y Diagnóstico Técnico (E2E) >> Técnico puede acceder a módulo de diagnósticos
+- Location: e2e/solicitud-diagnostico.spec.ts:42:3
 
 # Error details
 
