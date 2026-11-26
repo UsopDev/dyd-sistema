@@ -1,7 +1,5 @@
 import { z } from "zod"
 
-const texto = (max: number) => z.string().trim().min(1).max(max).nullable().optional()
-
 export const crearClienteSchema = z.object({
   razon_social: z.string().trim().min(1).max(150),
   ruc_dni: z.string().trim().min(1).max(15).nullable().optional(),

@@ -1,7 +1,5 @@
 import { z } from "zod"
 
-const texto = (max: number) => z.string().trim().min(1).max(max).nullable().optional()
-
 export const estadoMaquinaSchema = z.enum([
   "OPERATIVA",
   "EN_MANTENIMIENTO",

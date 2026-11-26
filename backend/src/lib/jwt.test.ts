@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import jwt from 'jsonwebtoken'
 import { firmarAccessToken, verificarAccessToken, type SesionUsuario, COOKIE_ACCESO } from './jwt.js'
 
@@ -58,7 +58,6 @@ describe('JWT - Access Tokens', () => {
         algorithm: 'HS256',
         expiresIn: '-1s',
       })
-      // Esperar un poco para que expire
       const resultado = verificarAccessToken(tokenExpirado)
       expect(resultado).toBeNull()
     })
