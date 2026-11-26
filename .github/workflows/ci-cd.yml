@@ -1,0 +1,128 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  NODE_VERSION: '24'
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # ==========================================
+  # CONTINUOUS INTEGRATION
+  # ==========================================
+  ci:
+    name: Continuous Integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      # --- Checkout ---
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # --- Setup Node.js ---
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+
+      # --- Install dependencies ---
+      - name: Install backend dependencies
+        working-directory: ./backend
+        run: npm ci
+
+      - name: Install frontend dependencies
+        working-directory: ./frontend
+        run: npm ci
+
+      # --- Type checking ---
+      - name: Typecheck backend
+        working-directory: ./backend
+        run: npm run typecheck
+
+      - name: Typecheck frontend
+        working-directory: ./frontend
+        run: npm run typecheck
+
+      # --- Build ---
+      - name: Build backend
+        working-directory: ./backend
+        run: npm run build
+
+      - name: Build frontend
+        working-directory: ./frontend
+        run: npm run build
+
+      # --- Database validation (Prisma) ---
+      - name: Validate Prisma schema
+        working-directory: ./backend
+        run: npx prisma validate
+
+      # --- Docker build test ---
+      - name: Build Docker images (test)
+        run: |
+          docker compose -f docker-compose.yml build --no-cache
+
+  # ==========================================
+  # CONTINUOUS DEPLOYMENT
+  # ==========================================
+  cd:
+    name: Continuous Deployment
+    needs: ci
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: production
+
+    steps:
+      # --- Checkout ---
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # --- Deploy to VPS via SSH ---
+      - name: Deploy to VPS
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT || 22 }}
+          script: |
+            set -e
+            cd /opt/dyd-sistema
+            echo "📥 Pulling latest code..."
+            git pull origin main
+            echo "🔨 Building and starting containers..."
+            docker compose -f docker-compose.yml up -d --build --remove-orphans
+            echo "🧹 Cleaning up unused images..."
+            docker image prune -f
+            echo "✅ Deployment complete!"
+            docker compose ps
+
+      # --- Health check ---
+      - name: Verify deployment health
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          port: ${{ secrets.VPS_PORT || 22 }}
+          script: |
+            sleep 10
+            echo "🔍 Checking service health..."
+            docker compose -f /opt/dyd-sistema/docker-compose.yml ps
+            echo "🌐 Testing backend health endpoint..."
+            curl -f http://localhost:3000/health || exit 1
+            echo "🌐 Testing frontend..."
+            curl -f http://localhost:5173 || exit 1
+            echo "✅ All services healthy!"
