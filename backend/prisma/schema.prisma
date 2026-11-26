@@ -6,13 +6,6 @@ datasource db {
   provider = "postgresql"
 }
 
-enum RolUsuario {
-  ADMINISTRADOR
-  TECNICO
-
-  @@map("rol_usuario")
-}
-
 enum EstadoMaquina {
   OPERATIVA
   EN_MANTENIMIENTO
@@ -78,6 +71,13 @@ enum TipoItem {
   MATERIAL
 
   @@map("tipo_item")
+}
+
+enum RolUsuario {
+  ADMINISTRADOR
+  TECNICO
+
+  @@map("rol_usuario")
 }
 
 model Usuario {

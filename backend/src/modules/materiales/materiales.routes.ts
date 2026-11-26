@@ -28,16 +28,18 @@ const crearSchema = z.object({
 const actualizarSchema = crearSchema
   .partial()
   .extend({ activo: z.boolean().optional() })
-  .refine((datos) => Object.keys(datos).length > 0, { message: "Envía al menos un campo" });
+  .refine((datos) => Object.keys(datos).length > 0, {
+    message: "Envía al menos un campo",
+  });
 
-const listarSchema = z.object({
-  q: z.string().trim().max(100).optional(),
-  activo: z.enum(["true", "false"]).optional(),
-  pagina: z.coerce.number().int().min(1).default(1),
-  limite: z.coerce.number().int().min(1).max(100).default(20),
-}).merge(
-  rangosFechaCampos("creado_en", "actualizado_en"),
-);
+const listarSchema = z
+  .object({
+    q: z.string().trim().max(100).optional(),
+    activo: z.enum(["true", "false"]).optional(),
+    pagina: z.coerce.number().int().min(1).default(1),
+    limite: z.coerce.number().int().min(1).max(100).default(20),
+  })
+  .merge(rangosFechaCampos("creado_en", "actualizado_en"));
 
 const paginacionSchema = z.object({
   pagina: z.coerce.number().int().min(1).default(1),
@@ -51,21 +53,30 @@ const movimientoSchema = z.object({
 });
 
 materialesRouter.get("/", async (req, res) => {
-  const filtros = validar(listarSchema, req.query, res) as
-    z.output<typeof listarSchema> & {
-      creado_en_desde?: string;
-      creado_en_hasta?: string;
-      actualizado_en_desde?: string;
-      actualizado_en_hasta?: string;
-      pagina: number;
-      limite: number;
-    };
+  const filtros = validar(listarSchema, req.query, res) as z.output<
+    typeof listarSchema
+  > & {
+    creado_en_desde?: string;
+    creado_en_hasta?: string;
+    actualizado_en_desde?: string;
+    actualizado_en_hasta?: string;
+    pagina: number;
+    limite: number;
+  };
   if (!filtros) return;
 
   const where = {
     ...(filtros.activo ? { activo: filtros.activo === "true" } : {}),
-    ...whereRangoFecha("creado_en", filtros.creado_en_desde, filtros.creado_en_hasta),
-    ...whereRangoFecha("actualizado_en", filtros.actualizado_en_desde, filtros.actualizado_en_hasta),
+    ...whereRangoFecha(
+      "creado_en",
+      filtros.creado_en_desde,
+      filtros.creado_en_hasta,
+    ),
+    ...whereRangoFecha(
+      "actualizado_en",
+      filtros.actualizado_en_desde,
+      filtros.actualizado_en_hasta,
+    ),
     ...(filtros.q
       ? {
           OR: [
@@ -86,7 +97,12 @@ materialesRouter.get("/", async (req, res) => {
     prisma.material.count({ where }),
   ]);
 
-  res.json({ materiales, total, pagina: filtros.pagina, limite: filtros.limite });
+  res.json({
+    materiales,
+    total,
+    pagina: filtros.pagina,
+    limite: filtros.limite,
+  });
 });
 
 // Prisma no compara dos columnas entre sí, por eso esta consulta es SQL directo.
@@ -138,7 +154,9 @@ materialesRouter.get("/:id", async (req, res) => {
   const params = validar(idSchema, req.params, res);
   if (!params) return;
 
-  const material = await prisma.material.findUnique({ where: { id_material: params.id } });
+  const material = await prisma.material.findUnique({
+    where: { id_material: params.id },
+  });
 
   if (!material) {
     res.status(404).json({ error: "Material no encontrado" });
@@ -155,7 +173,9 @@ materialesRouter.patch("/:id", soloAdmin, async (req, res) => {
   const datos = validar(actualizarSchema, req.body, res);
   if (!datos) return;
 
-  const existente = await prisma.material.findUnique({ where: { id_material: params.id } });
+  const existente = await prisma.material.findUnique({
+    where: { id_material: params.id },
+  });
 
   if (!existente) {
     res.status(404).json({ error: "Material no encontrado" });
@@ -163,7 +183,9 @@ materialesRouter.patch("/:id", soloAdmin, async (req, res) => {
   }
 
   if (datos.codigo) {
-    const repetido = await prisma.material.findUnique({ where: { codigo: datos.codigo } });
+    const repetido = await prisma.material.findUnique({
+      where: { codigo: datos.codigo },
+    });
     if (repetido && repetido.id_material !== params.id) {
       res.status(409).json({ error: "Ya existe un material con ese código" });
       return;
@@ -173,7 +195,10 @@ materialesRouter.patch("/:id", soloAdmin, async (req, res) => {
   const data = Object.fromEntries(
     Object.entries(datos).filter(([, v]) => v !== undefined),
   ) as any;
-  const material = await prisma.material.update({ where: { id_material: params.id }, data });
+  const material = await prisma.material.update({
+    where: { id_material: params.id },
+    data,
+  });
   res.json({ material });
 });
 
@@ -186,7 +211,9 @@ materialesRouter.post("/:id/movimientos", soloAdmin, async (req, res) => {
 
   const sesion = res.locals.sesion as SesionUsuario;
 
-  const material = await prisma.material.findUnique({ where: { id_material: params.id } });
+  const material = await prisma.material.findUnique({
+    where: { id_material: params.id },
+  });
 
   if (!material) {
     res.status(404).json({ error: "Material no encontrado" });
@@ -250,7 +277,9 @@ materialesRouter.get("/:id/movimientos", async (req, res) => {
   const paginacion = validar(paginacionSchema, req.query, res);
   if (!paginacion) return;
 
-  const existente = await prisma.material.findUnique({ where: { id_material: params.id } });
+  const existente = await prisma.material.findUnique({
+    where: { id_material: params.id },
+  });
 
   if (!existente) {
     res.status(404).json({ error: "Material no encontrado" });
@@ -270,5 +299,10 @@ materialesRouter.get("/:id/movimientos", async (req, res) => {
     prisma.movimientoInventario.count({ where }),
   ]);
 
-  res.json({ movimientos, total, pagina: paginacion.pagina, limite: paginacion.limite });
+  res.json({
+    movimientos,
+    total,
+    pagina: paginacion.pagina,
+    limite: paginacion.limite,
+  });
 });
