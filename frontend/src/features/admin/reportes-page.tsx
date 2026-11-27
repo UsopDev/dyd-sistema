@@ -47,6 +47,10 @@ import {
   useReporteTiempoOrden,
   useReporteTipos,
 } from "@/features/admin/hooks/use-reportes";
+import {
+  useClientesOpciones,
+  useUsuariosOpciones,
+} from "@/features/admin/hooks/use-admin-queries";
 import { dashboardApi } from "@/lib/admin-api";
 import { mensajeDeError } from "@/lib/http";
 import {
@@ -87,6 +91,8 @@ const EXPORTABLES: Array<{ value: ReporteExportable; label: string }> = [
   { value: "materiales-mas-usados", label: "Materiales más usados" },
   { value: "ingresos-por-mes", label: "Ingresos por mes" },
   { value: "tecnicos-rendimiento", label: "Rendimiento de técnicos" },
+  { value: "ordenes-excel", label: "Órdenes de trabajo (Excel)" },
+  { value: "ordenes-pdf", label: "Órdenes de trabajo (PDF)" },
 ];
 
 const COLOR_TIPO: Record<string, string> = {
@@ -271,6 +277,14 @@ export function ReportesPage() {
   const [vistaPreviaAbierta, setVistaPreviaAbierta] = useState(false);
   const { toast } = useToast();
 
+  // Filtros opcionales solo para el reporte de órdenes de trabajo
+  const [ordenCliente, setOrdenCliente] = useState<string | undefined>();
+  const [ordenTecnico, setOrdenTecnico] = useState<string | undefined>();
+  const [ordenEstado, setOrdenEstado] = useState<string | undefined>();
+
+  const opcionesClientes = useClientesOpciones();
+  const opcionesTecnicos = useUsuariosOpciones("TECNICO");
+
   const rangoInvalido = Boolean(desde && hasta && desde > hasta);
   const rango = {
     desde: desde || undefined,
@@ -329,7 +343,23 @@ export function ReportesPage() {
     setExportando(tipoExport);
 
     try {
-      if (formatoExport === "xlsx") {
+      if (tipoExport === "ordenes-excel") {
+        await dashboardApi.descargarOrdenesXlsx({
+          fecha_desde: desde,
+          fecha_hasta: hasta,
+          id_cliente: ordenCliente,
+          id_tecnico: ordenTecnico,
+          estado: ordenEstado,
+        });
+      } else if (tipoExport === "ordenes-pdf") {
+        await dashboardApi.descargarOrdenesPdf({
+          fecha_desde: desde,
+          fecha_hasta: hasta,
+          id_cliente: ordenCliente,
+          id_tecnico: ordenTecnico,
+          estado: ordenEstado,
+        });
+      } else if (formatoExport === "xlsx") {
         await dashboardApi.descargarXlsx(tipoExport, rango.desde, rango.hasta);
       } else if (formatoExport === "pdf") {
         await dashboardApi.descargarPdf(tipoExport, rango.desde, rango.hasta);
@@ -572,6 +602,110 @@ export function ReportesPage() {
                 <option value="pdf">PDF</option>
               </Select>
             </label>
+
+            {tipoExport === "ordenes-excel" || tipoExport === "ordenes-pdf" ? (
+              <>
+                <label className="block sm:hidden">
+                  <span className="mb-1 block text-[11px] font-bold uppercase tracking-[0.08em] text-slate-400">
+                    Cliente
+                  </span>
+                  <Select
+                    value={ordenCliente ?? ""}
+                    onChange={(event) =>
+                      setOrdenCliente(event.target.value || undefined)
+                    }
+                    aria-label="Cliente"
+                    className="w-full"
+                  >
+                    <option value="">Todos</option>
+                    {opcionesClientes.data?.map((c) => (
+                      <option key={c.id_cliente} value={c.id_cliente}>
+                        {c.razon_social}
+                      </option>
+                    ))}
+                  </Select>
+                </label>
+                <label className="hidden sm:block">
+                  <span className="mb-1 block text-[11px] font-bold uppercase tracking-[0.08em] text-slate-400">
+                    Cliente
+                  </span>
+                  <Select
+                    value={ordenCliente ?? ""}
+                    onChange={(event) =>
+                      setOrdenCliente(event.target.value || undefined)
+                    }
+                    aria-label="Cliente"
+                    className="sm:w-[140px]"
+                  >
+                    <option value="">Todos</option>
+                    {opcionesClientes.data?.map((c) => (
+                      <option key={c.id_cliente} value={c.id_cliente}>
+                        {c.razon_social}
+                      </option>
+                    ))}
+                  </Select>
+                </label>
+                <label className="block sm:hidden">
+                  <span className="mb-1 block text-[11px] font-bold uppercase tracking-[0.08em] text-slate-400">
+                    Técnico
+                  </span>
+                  <Select
+                    value={ordenTecnico ?? ""}
+                    onChange={(event) =>
+                      setOrdenTecnico(event.target.value || undefined)
+                    }
+                    aria-label="Técnico"
+                    className="w-full"
+                  >
+                    <option value="">Todos</option>
+                    {opcionesTecnicos.data?.map((u) => (
+                      <option key={u.id_usuario} value={u.id_usuario}>
+                        {u.nombres} {u.apellidos}
+                      </option>
+                    ))}
+                  </Select>
+                </label>
+                <label className="hidden sm:block">
+                  <span className="mb-1 block text-[11px] font-bold uppercase tracking-[0.08em] text-slate-400">
+                    Técnico
+                  </span>
+                  <Select
+                    value={ordenTecnico ?? ""}
+                    onChange={(event) =>
+                      setOrdenTecnico(event.target.value || undefined)
+                    }
+                    aria-label="Técnico"
+                    className="sm:w-[140px]"
+                  >
+                    <option value="">Todos</option>
+                    {opcionesTecnicos.data?.map((u) => (
+                      <option key={u.id_usuario} value={u.id_usuario}>
+                        {u.nombres} {u.apellidos}
+                      </option>
+                    ))}
+                  </Select>
+                </label>
+                <label className="block sm:hidden">
+                  <span className="mb-1 block text-[11px] font-bold uppercase tracking-[0.08em] text-slate-400">
+                    Estado
+                  </span>
+                  <Select
+                    value={ordenEstado ?? ""}
+                    onChange={(event) =>
+                      setOrdenEstado(event.target.value || undefined)
+                    }
+                    aria-label="Estado"
+                    className="w-full"
+                  >
+                    <option value="">Todos</option>
+                    <option value="PENDIENTE">Pendiente</option>
+                    <option value="EN_PROCESO">En proceso</option>
+                    <option value="FINALIZADA">Finalizada</option>
+                    <option value="CANCELADA">Cancelada</option>
+                  </Select>
+                </label>
+              </>
+            ) : null}
             <Button
               type="button"
               variant="outline"
@@ -827,11 +961,29 @@ export function ReportesPage() {
               </div>
             </div>
             <div className="h-[70vh] overflow-auto p-4">
-              <iframe
-                src={"/api/reportes/exportar/" + tipoExport + "?fecha_desde=" + (rango.desde ?? "") + "&fecha_hasta=" + (rango.hasta ?? "") + "&format=pdf&inline=true"}
-                className="w-full h-full border-0"
-                title="Vista previa del reporte"
-              />
+              {tipoExport === "ordenes-excel" || tipoExport === "ordenes-pdf" ? (
+                <iframe
+                  src={
+                    "/api/reportes/ordenes/pdf?" +
+                    new URLSearchParams({
+                      fecha_desde: desde ?? "",
+                      fecha_hasta: hasta ?? "",
+                      id_cliente: ordenCliente ?? "",
+                      id_tecnico: ordenTecnico ?? "",
+                      estado: ordenEstado ?? "",
+                      inline: "true",
+                    }).toString()
+                  }
+                  className="w-full h-full border-0"
+                  title="Vista previa del reporte"
+                />
+              ) : (
+                <iframe
+                  src={"/api/reportes/exportar/" + tipoExport + "?fecha_desde=" + (rango.desde ?? "") + "&fecha_hasta=" + (rango.hasta ?? "") + "&format=pdf&inline=true"}
+                  className="w-full h-full border-0"
+                  title="Vista previa del reporte"
+                />
+              )}
             </div>
           </div>
         </div>

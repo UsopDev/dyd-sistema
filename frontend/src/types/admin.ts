@@ -611,7 +611,9 @@ export type ReporteExportable =
   | "materiales-mas-usados"
   | "ingresos-por-mes"
   | "tecnicos-rendimiento"
-  | "resumen";
+  | "resumen"
+  | "ordenes-excel"
+  | "ordenes-pdf";
 
 export interface FiltrosAdmin {
   q?: string;

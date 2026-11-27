@@ -253,6 +253,79 @@ export const dashboardApi = {
     enlace.remove();
     URL.revokeObjectURL(url);
   },
+
+  descargarOrdenesXlsx: async (
+    params?: {
+      fecha_desde?: string;
+      fecha_hasta?: string;
+      id_cliente?: string;
+      id_tecnico?: string;
+      estado?: string;
+      tipo_servicio?: string;
+      prioridad?: string;
+      q?: string;
+    },
+  ): Promise<void> => {
+    const { data } = await staffApi.get<Blob>("/reportes/ordenes/excel", {
+      params: limpiar(params),
+      responseType: "blob",
+    });
+
+    const url = URL.createObjectURL(data);
+    const enlace = document.createElement("a");
+    enlace.href = url;
+    enlace.download = `ordenes-${hoyISO()}.xlsx`;
+    document.body.appendChild(enlace);
+    enlace.click();
+    enlace.remove();
+    URL.revokeObjectURL(url);
+  },
+
+  descargarOrdenesPdf: async (
+    params?: {
+      fecha_desde?: string;
+      fecha_hasta?: string;
+      id_cliente?: string;
+      id_tecnico?: string;
+      estado?: string;
+      tipo_servicio?: string;
+      prioridad?: string;
+      q?: string;
+    },
+  ): Promise<void> => {
+    const { data } = await staffApi.get<Blob>("/reportes/ordenes/pdf", {
+      params: limpiar(params),
+      responseType: "blob",
+    });
+
+    const url = URL.createObjectURL(data);
+    const enlace = document.createElement("a");
+    enlace.href = url;
+    enlace.download = `ordenes-${hoyISO()}.pdf`;
+    document.body.appendChild(enlace);
+    enlace.click();
+    enlace.remove();
+    URL.revokeObjectURL(url);
+  },
+
+  vistaPreviaOrdenesPdf: async (
+    params?: {
+      fecha_desde?: string;
+      fecha_hasta?: string;
+      id_cliente?: string;
+      id_tecnico?: string;
+      estado?: string;
+      tipo_servicio?: string;
+      prioridad?: string;
+      q?: string;
+    },
+  ): Promise<string> => {
+    const { data } = await staffApi.get<Blob>("/reportes/ordenes/pdf", {
+      params: limpiar({ ...params, inline: "true" }),
+      responseType: "blob",
+    });
+    return URL.createObjectURL(data);
+  },
 };
 
 /** Compatibilidad con la estructura pedida en el prompt. */

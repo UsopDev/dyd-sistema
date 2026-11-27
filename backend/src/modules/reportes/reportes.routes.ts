@@ -1,12 +1,13 @@
 import { Router } from "express";
-import PDFDocument from "pdfkit";
 import { z } from "zod";
 import { prisma } from "../../lib/prisma.js";
 import { validar } from "../../lib/validar.js";
 import { requireRol } from "../../middleware/auth.js";
 import { whereRangoFecha } from "../../lib/filtros.js";
-import { aExcel, aExcelResumen } from "../../lib/excel.js";
+import { fechaLarga } from "./reporte-formato.js";
 import type { EstadoSolicitud, TipoServicio, Prioridad } from "@prisma/client";
+import { reporteOrdenesController } from "./reporteOrdenes.controller.js";
+import { generarExcelGenerico, generarPdfGenerico } from "./reporteGenerico.service.js";
 
 export const reportesRouter = Router();
 
@@ -494,6 +495,32 @@ function aCSV(data: unknown[]): string {
   return [headers.join(","), ...filas].join("\n");
 }
 
+/**
+ * Aplana un objeto anidado en claves planas con notación de puntos.
+ * Ej: { solicitudes: { total: 1, finalizadas: 1 } }
+ * → { "solicitudes.total": 1, "solicitudes.finalizadas": 1 }
+ * Evita mostrar JSON string en las celdas del reporte.
+ */
+function aplanarFila(obj: Record<string, unknown>, prefijo = ""): Record<string, unknown> {
+  const resultado: Record<string, unknown> = {};
+  for (const [key, valor] of Object.entries(obj)) {
+    const claveCompleta = prefijo ? `${prefijo}.${key}` : key;
+    if (valor !== null && valor !== undefined && typeof valor === "object" && !Array.isArray(valor)) {
+      Object.assign(resultado, aplanarFila(valor as Record<string, unknown>, claveCompleta));
+    } else {
+      resultado[claveCompleta] = valor === null || valor === undefined ? "" : valor;
+    }
+  }
+  return resultado;
+}
+
+/**
+ * Convierte filas (array de objetos) en filas planas, aplanando objetos anidados.
+ */
+function filasPlanas(filas: Record<string, unknown>[]): Record<string, unknown>[] {
+  return filas.map((row) => aplanarFila(row));
+}
+
 // 12. Exportar a CSV (genérico para cualquier reporte)
 reportesRouter.get("/exportar/:tipo", soloAdmin, async (req, res) => {
   const tipo = Array.isArray(req.params.tipo) ? req.params.tipo[0] : req.params.tipo;
@@ -517,6 +544,9 @@ reportesRouter.get("/exportar/:tipo", soloAdmin, async (req, res) => {
     res.status(404).json({ error: "Tipo de reporte no válido", disponibles: reportesDisponibles });
     return;
   }
+
+  const filtrosFecha = validar(rangoFechaSchema, req.query, res);
+  if (!filtrosFecha) return;
 
   // Reutilizar la lógica de cada reporte llamando a la función interna
   // Como los handlers están inline, creamos una función que devuelve los datos
@@ -656,127 +686,94 @@ reportesRouter.get("/exportar/:tipo", soloAdmin, async (req, res) => {
 
   const formato = format === "xlsx" ? "xlsx" : format === "csv" ? "csv" : format === "pdf" ? "pdf" : "json";
 
+  const desde = filtrosFecha?.fecha_desde ?? "";
+  const hasta = filtrosFecha?.fecha_hasta ?? "";
+  const fechaStr = new Date().toISOString().slice(0, 10);
+  const sesion = (res as any).locals?.sesion as { id?: string } | undefined;
+  const generadoPor = sesion?.id ? await nombreUsuarioReporte(sesion.id) : "Sistema";
+  const generadoEn = new Date().toLocaleString("es-BO", { timeZone: "America/La_Paz" });
+
   if (formato === "xlsx") {
-    let buffer: Buffer;
-    if ("data" in resultado && Array.isArray((resultado as { data: unknown[] }).data)) {
-      buffer = await aExcel((resultado as { data: unknown[] }).data);
-    } else {
-      buffer = await aExcelResumen(resultado as Record<string, unknown>);
-    }
+    const filas: Record<string, unknown>[] =
+      "data" in resultado && Array.isArray((resultado as { data: unknown[] }).data)
+        ? ((resultado as { data: unknown[] }).data as Record<string, unknown>[])
+        : [resultado as Record<string, unknown>];
+
+    const filasAplanadas = filasPlanas(filas);
+
+    const buffer = await generarExcelGenerico({
+      titulo: tipo,
+      subtitulo: "Reporte generado por el Sistema de Gestión DYD",
+      periodo: `${fechaLarga(desde)} — ${fechaLarga(hasta)}`,
+      generadoPor,
+      generadoEn,
+      filas: filasAplanadas,
+    });
+
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-    res.setHeader("Content-Disposition", `attachment; filename="${tipo}-${new Date().toISOString().slice(0, 10)}.xlsx"`);
+    res.setHeader("Content-Disposition", `attachment; filename="${tipo}-${fechaStr}.xlsx"`);
     res.send(buffer);
   } else if (formato === "csv") {
-    let csvData: string;
-    if ("data" in resultado && Array.isArray((resultado as { data: unknown[] }).data)) {
-      csvData = aCSV((resultado as { data: unknown[] }).data);
-    } else {
-      csvData = aCSV([resultado]);
-    }
+    const filas: Record<string, unknown>[] =
+      "data" in resultado && Array.isArray((resultado as { data: unknown[] }).data)
+        ? ((resultado as { data: unknown[] }).data as Record<string, unknown>[])
+        : [resultado as Record<string, unknown>];
+
+    const filasAplanadas = filasPlanas(filas);
+    const csvData = aCSV(filasAplanadas);
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
-    res.setHeader("Content-Disposition", `attachment; filename="${tipo}-${new Date().toISOString().slice(0, 10)}.csv"`);
+    res.setHeader("Content-Disposition", `attachment; filename="${tipo}-${fechaStr}.csv"`);
     res.send(csvData);
   } else if (formato === "pdf") {
-    const buffer = await generarPDF(resultado, tipo);
+    const filas: Record<string, unknown>[] =
+      "data" in resultado && Array.isArray((resultado as { data: unknown[] }).data)
+        ? ((resultado as { data: unknown[] }).data as Record<string, unknown>[])
+        : [resultado as Record<string, unknown>];
+
+    const filasAplanadas = filasPlanas(filas);
+    const columnas = filasAplanadas.length > 0 ? Object.keys(filasAplanadas[0]).map((key) => ({
+      key,
+      label: key.replace(/_/g, " ").replace(/\b\w/g, (l) => l.toUpperCase()),
+    })) : [];
+
+    const buffer = await generarPdfGenerico({
+      titulo: tipo,
+      subtitulo: "Reporte generado por el Sistema de Gestión DYD",
+      periodo: `${fechaLarga(desde)} — ${fechaLarga(hasta)}`,
+      generadoPor,
+      generadoEn,
+      filas: filasAplanadas,
+      columnas,
+      filtrosTexto: `desde=${desde} hasta=${hasta}`,
+    });
+
     const inline = Array.isArray(req.query.inline) ? req.query.inline[0] : req.query.inline;
     const disposition = inline === "true" ? "inline" : "attachment";
     res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", `${disposition}; filename="${tipo}-${new Date().toISOString().slice(0, 10)}.pdf"`);
+    res.setHeader("Content-Disposition", `${disposition}; filename="${tipo}-${fechaStr}.pdf"`);
     res.send(buffer);
   } else {
     res.json(resultado);
   }
 });
-// Función auxiliar para generar PDF
-async function generarPDF(resultado: unknown, tipo: string): Promise<Buffer> {
-  const data = resultado as Record<string, unknown>;
-  return new Promise((resolve, reject) => {
-    const doc = new PDFDocument({ margin: 40, size: "A4" });
-    const chunks: Buffer[] = [];
-
-    doc.on("data", (chunk) => chunks.push(chunk));
-    doc.on("end", () => resolve(Buffer.concat(chunks)));
-    doc.on("error", reject);
-
-    // Título del reporte
-    const titulos: Record<string, string> = {
-      "solicitudes-por-estado": "Solicitudes por Estado",
-      "solicitudes-por-tecnico": "Solicitudes por Técnico",
-      "solicitudes-por-cliente": "Solicitudes por Cliente",
-      "solicitudes-por-tipo": "Solicitudes por Tipo de Servicio",
-      "solicitudes-por-prioridad": "Solicitudes por Prioridad",
-      "tiempo-promedio-diagnostico": "Tiempo Promedio de Diagnóstico",
-      "tiempo-promedio-orden": "Tiempo Promedio de Orden",
-      "materiales-mas-usados": "Materiales Más Usados",
-      "ingresos-por-mes": "Ingresos por Mes",
-      "tecnicos-rendimiento": "Rendimiento de Técnicos",
-      "resumen": "Resumen General",
-    };
-
-    doc.fontSize(18).font("Helvetica-Bold").text(titulos[tipo] || tipo, { align: "center" });
-    doc.moveDown();
-    doc.fontSize(10).font("Helvetica").text(`Generado: ${new Date().toLocaleString("es-PE")}`, { align: "center" });
-    doc.moveDown(2);
-
-    // Datos del reporte
-    if ("data" in data && Array.isArray((data as { data: unknown[] }).data)) {
-      const datos = (data as { data: unknown[] }).data;
-      if (datos.length > 0) {
-        // Tabla simple
-        const keys = Object.keys(datos[0] as object);
-        const colWidth = (doc.page.width - 80) / keys.length;
-
-        // Encabezado
-        doc.font("Helvetica-Bold").fontSize(8);
-        keys.forEach((key, i) => {
-          doc.text(key.toUpperCase(), 40 + i * colWidth, doc.y, { width: colWidth, align: "left" });
-        });
-        doc.moveDown(0.5);
-        doc.moveTo(40, doc.y).lineTo(doc.page.width - 40, doc.y).stroke();
-        doc.moveDown(0.3);
-
-        // Filas
-        doc.font("Helvetica").fontSize(7);
-        for (const row of datos) {
-          const vals = keys.map((k) => {
-            const v = (row as Record<string, unknown>)[k];
-            if (v === null || v === undefined) return "";
-            if (typeof v === "object") return JSON.stringify(v);
-            return String(v);
-          });
-          vals.forEach((val, i) => {
-            doc.text(val.slice(0, 30), 40 + i * colWidth, doc.y, { width: colWidth, align: "left" });
-          });
-          doc.moveDown(0.4);
-          if (doc.y > doc.page.height - 60) {
-            doc.addPage();
-          }
-        }
-      } else {
-        doc.fontSize(10).text("Sin datos para el período seleccionado.", { align: "center" });
-      }
-    } else {
-      // Objeto simple (resumen, tiempos promedio, etc.)
-      doc.font("Helvetica").fontSize(10);
-      const obj = data;
-      for (const [key, value] of Object.entries(obj)) {
-        if (value === null || value === undefined) continue;
-        if (typeof value === "object") {
-          doc.font("Helvetica-Bold").text(`${key}:`);
-          doc.font("Helvetica");
-          const subObj = value as Record<string, unknown>;
-          for (const [sk, sv] of Object.entries(subObj)) {
-            doc.text(`  ${sk}: ${sv ?? ""}`);
-          }
-          doc.moveDown(0.3);
-        } else {
-          doc.text(`${key}: ${value}`);
-        }
-      }
-    }
-
-    doc.end();
-  });
-}
 
 // Agregar PDF al exportador (modificar la sección de formatos)
+
+// ==================== RUTAS DE ÓRDENES ====================
+
+reportesRouter.get("/ordenes/excel", soloAdmin, (req, res) =>
+  reporteOrdenesController.excel(req, res),
+);
+
+reportesRouter.get("/ordenes/pdf", soloAdmin, (req, res) =>
+  reporteOrdenesController.pdf(req, res),
+);
+
+async function nombreUsuarioReporte(idUsuario: string): Promise<string> {
+  const usuario = await prisma.usuario.findUnique({
+    where: { id_usuario: idUsuario },
+    select: { nombres: true, apellidos: true, email: true },
+  });
+  if (!usuario) return "Sistema";
+  return `${usuario.nombres} ${usuario.apellidos}`.trim() || usuario.email;
+}
