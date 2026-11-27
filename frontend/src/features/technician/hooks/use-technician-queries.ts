@@ -4,7 +4,6 @@ import {
   type PayloadDiagnostico,
 } from "@/lib/technician-api";
 import type { FiltrosAdmin } from "@/types/admin";
-import type { DiagnosticoTecnico } from "@/types/technician";
 
 export const tecnicoKeys = {
   dashboard: ["tecnico", "dashboard"] as const,

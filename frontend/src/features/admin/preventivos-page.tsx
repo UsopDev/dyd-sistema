@@ -161,7 +161,7 @@ function PreventivoFormDialog({
     handleSubmit,
     reset,
     formState: { errors, isSubmitting },
-  } = useForm<PreventivoFormValues>({
+  } = useForm<z.input<typeof preventivoSchema>, unknown, z.output<typeof preventivoSchema>>({
     resolver: zodResolver(preventivoSchema),
     defaultValues: VACIOS,
   });
@@ -702,7 +702,7 @@ export function PreventivosPage() {
                   </div>
                   <div className="flex items-center gap-3 flex-wrap">
                     <Badge variant={
-                      preventivo.estado_mantenimiento.estado === "VENCIDO" ? "destructive" :
+                      preventivo.estado_mantenimiento.estado === "VENCIDO" ? "danger" :
                       preventivo.estado_mantenimiento.estado === "PROXIMO" ? "warning" : "success"
                     }>
                       {ETIQUETA_ESTADO_PREVENTIVO[preventivo.estado_mantenimiento.estado]}

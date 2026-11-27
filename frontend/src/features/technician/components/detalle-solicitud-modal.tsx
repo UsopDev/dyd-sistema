@@ -401,7 +401,7 @@ export function DetalleSolicitudTecnicoModal({
       >
         <form
           id="diagnostico-form"
-          onSubmit={handleSubmit(onSubmit)}
+          onSubmit={onSubmit}
           className="space-y-5"
         >
           <FormField

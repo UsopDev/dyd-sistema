@@ -327,6 +327,7 @@ function MaquinaFormDialog({
 }
 
 export function MaquinasPage() {
+  const { toast } = useToast();
   const [pagina, setPagina] = useState(1);
   const [q, setQ] = useState("");
   const [estado, setEstado] = useState("");
@@ -360,7 +361,7 @@ export function MaquinasPage() {
   const usoSchema = z.object({
     fecha: z.string().min(1, "La fecha es obligatoria").refine((f) => !isNaN(new Date(f).getTime()), "Fecha inválida"),
     horas: z.coerce
-      .number("Ingresá un número")
+      .number<number>("Ingresá un número")
       .min(0.1, "Mínimo 0.1 horas")
       .max(24, "Máximo 24 horas"),
   });
@@ -370,6 +371,7 @@ export function MaquinasPage() {
     resolver: zodResolver(usoSchema),
     defaultValues: { fecha: new Date().toISOString().slice(0, 10), horas: 1 },
   });
+  const usoEnviando = usoForm.formState.isSubmitting;
 
   const onSubmitUso = usoForm.handleSubmit(async (values) => {
     try {
@@ -670,15 +672,15 @@ export function MaquinasPage() {
             <Button
               type="submit"
               form="registrar-uso-form"
-              disabled={usoForm.isSubmitting}
+              disabled={usoEnviando}
             >
-              {usoForm.isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+              {usoEnviando && <Loader2 className="h-4 w-4 animate-spin" />}
               Guardar registro
             </Button>
           </>
         }
       >
-        <form id="registrar-uso-form" onSubmit={usoForm.handleSubmit(onSubmitUso)} className="grid gap-4">
+        <form id="registrar-uso-form" onSubmit={onSubmitUso} className="grid gap-4">
           <FormField
             label="Fecha"
             htmlFor="fecha_uso"
