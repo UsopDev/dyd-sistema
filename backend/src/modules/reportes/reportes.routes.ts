@@ -678,8 +678,10 @@ reportesRouter.get("/exportar/:tipo", soloAdmin, async (req, res) => {
     res.send(csvData);
   } else if (formato === "pdf") {
     const buffer = await generarPDF(resultado, tipo);
+    const inline = Array.isArray(req.query.inline) ? req.query.inline[0] : req.query.inline;
+    const disposition = inline === "true" ? "inline" : "attachment";
     res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", `attachment; filename="${tipo}-${new Date().toISOString().slice(0, 10)}.pdf"`);
+    res.setHeader("Content-Disposition", `${disposition}; filename="${tipo}-${new Date().toISOString().slice(0, 10)}.pdf"`);
     res.send(buffer);
   } else {
     res.json(resultado);

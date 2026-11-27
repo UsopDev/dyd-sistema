@@ -562,13 +562,14 @@ export function ReportesPage() {
               <Select
                 value={formatoExport}
                 onChange={(event) =>
-                  setFormatoExport(event.target.value as "csv" | "xlsx")
+                  setFormatoExport(event.target.value as "csv" | "xlsx" | "pdf")
                 }
                 aria-label="Formato de exportación"
                 className="sm:w-[140px]"
               >
                 <option value="csv">CSV</option>
                 <option value="xlsx">Excel (.xlsx)</option>
+                <option value="pdf">PDF</option>
               </Select>
             </label>
             <Button
@@ -827,7 +828,7 @@ export function ReportesPage() {
             </div>
             <div className="h-[70vh] overflow-auto p-4">
               <iframe
-                src={"/api/reportes/exportar/" + tipoExport + "?fecha_desde=" + (rango.desde ?? "") + "&fecha_hasta=" + (rango.hasta ?? "") + "&format=pdf"}
+                src={"/api/reportes/exportar/" + tipoExport + "?fecha_desde=" + (rango.desde ?? "") + "&fecha_hasta=" + (rango.hasta ?? "") + "&format=pdf&inline=true"}
                 className="w-full h-full border-0"
                 title="Vista previa del reporte"
               />
