@@ -229,6 +229,30 @@ export const dashboardApi = {
     enlace.remove();
     URL.revokeObjectURL(url);
   },
+
+  descargarPdf: async (
+    tipo: ReporteExportable,
+    desde?: string,
+    hasta?: string,
+  ): Promise<void> => {
+    const { data } = await staffApi.get<Blob>("/reportes/exportar/" + tipo, {
+      params: limpiar({
+        fecha_desde: desde,
+        fecha_hasta: hasta,
+        format: "pdf",
+      }),
+      responseType: "blob",
+    });
+
+    const url = URL.createObjectURL(data);
+    const enlace = document.createElement("a");
+    enlace.href = url;
+    enlace.download = tipo + "-" + hoyISO() + ".pdf";
+    document.body.appendChild(enlace);
+    enlace.click();
+    enlace.remove();
+    URL.revokeObjectURL(url);
+  },
 };
 
 /** Compatibilidad con la estructura pedida en el prompt. */

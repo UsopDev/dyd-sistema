@@ -1,4 +1,5 @@
 import { Router } from "express";
+import PDFDocument from "pdfkit";
 import { z } from "zod";
 import { prisma } from "../../lib/prisma.js";
 import { validar } from "../../lib/validar.js";
@@ -653,7 +654,7 @@ reportesRouter.get("/exportar/:tipo", soloAdmin, async (req, res) => {
     return;
   }
 
-  const formato = format === "xlsx" ? "xlsx" : format === "csv" ? "csv" : "json";
+  const formato = format === "xlsx" ? "xlsx" : format === "csv" ? "csv" : format === "pdf" ? "pdf" : "json";
 
   if (formato === "xlsx") {
     let buffer: Buffer;
@@ -675,7 +676,105 @@ reportesRouter.get("/exportar/:tipo", soloAdmin, async (req, res) => {
     res.setHeader("Content-Type", "text/csv; charset=utf-8");
     res.setHeader("Content-Disposition", `attachment; filename="${tipo}-${new Date().toISOString().slice(0, 10)}.csv"`);
     res.send(csvData);
+  } else if (formato === "pdf") {
+    const buffer = await generarPDF(resultado, tipo);
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="${tipo}-${new Date().toISOString().slice(0, 10)}.pdf"`);
+    res.send(buffer);
   } else {
     res.json(resultado);
   }
 });
+// Función auxiliar para generar PDF
+async function generarPDF(resultado: unknown, tipo: string): Promise<Buffer> {
+  const data = resultado as Record<string, unknown>;
+  return new Promise((resolve, reject) => {
+    const doc = new PDFDocument({ margin: 40, size: "A4" });
+    const chunks: Buffer[] = [];
+
+    doc.on("data", (chunk) => chunks.push(chunk));
+    doc.on("end", () => resolve(Buffer.concat(chunks)));
+    doc.on("error", reject);
+
+    // Título del reporte
+    const titulos: Record<string, string> = {
+      "solicitudes-por-estado": "Solicitudes por Estado",
+      "solicitudes-por-tecnico": "Solicitudes por Técnico",
+      "solicitudes-por-cliente": "Solicitudes por Cliente",
+      "solicitudes-por-tipo": "Solicitudes por Tipo de Servicio",
+      "solicitudes-por-prioridad": "Solicitudes por Prioridad",
+      "tiempo-promedio-diagnostico": "Tiempo Promedio de Diagnóstico",
+      "tiempo-promedio-orden": "Tiempo Promedio de Orden",
+      "materiales-mas-usados": "Materiales Más Usados",
+      "ingresos-por-mes": "Ingresos por Mes",
+      "tecnicos-rendimiento": "Rendimiento de Técnicos",
+      "resumen": "Resumen General",
+    };
+
+    doc.fontSize(18).font("Helvetica-Bold").text(titulos[tipo] || tipo, { align: "center" });
+    doc.moveDown();
+    doc.fontSize(10).font("Helvetica").text(`Generado: ${new Date().toLocaleString("es-PE")}`, { align: "center" });
+    doc.moveDown(2);
+
+    // Datos del reporte
+    if ("data" in data && Array.isArray((data as { data: unknown[] }).data)) {
+      const datos = (data as { data: unknown[] }).data;
+      if (datos.length > 0) {
+        // Tabla simple
+        const keys = Object.keys(datos[0] as object);
+        const colWidth = (doc.page.width - 80) / keys.length;
+
+        // Encabezado
+        doc.font("Helvetica-Bold").fontSize(8);
+        keys.forEach((key, i) => {
+          doc.text(key.toUpperCase(), 40 + i * colWidth, doc.y, { width: colWidth, align: "left" });
+        });
+        doc.moveDown(0.5);
+        doc.moveTo(40, doc.y).lineTo(doc.page.width - 40, doc.y).stroke();
+        doc.moveDown(0.3);
+
+        // Filas
+        doc.font("Helvetica").fontSize(7);
+        for (const row of datos) {
+          const vals = keys.map((k) => {
+            const v = (row as Record<string, unknown>)[k];
+            if (v === null || v === undefined) return "";
+            if (typeof v === "object") return JSON.stringify(v);
+            return String(v);
+          });
+          vals.forEach((val, i) => {
+            doc.text(val.slice(0, 30), 40 + i * colWidth, doc.y, { width: colWidth, align: "left" });
+          });
+          doc.moveDown(0.4);
+          if (doc.y > doc.page.height - 60) {
+            doc.addPage();
+          }
+        }
+      } else {
+        doc.fontSize(10).text("Sin datos para el período seleccionado.", { align: "center" });
+      }
+    } else {
+      // Objeto simple (resumen, tiempos promedio, etc.)
+      doc.font("Helvetica").fontSize(10);
+      const obj = data;
+      for (const [key, value] of Object.entries(obj)) {
+        if (value === null || value === undefined) continue;
+        if (typeof value === "object") {
+          doc.font("Helvetica-Bold").text(`${key}:`);
+          doc.font("Helvetica");
+          const subObj = value as Record<string, unknown>;
+          for (const [sk, sv] of Object.entries(subObj)) {
+            doc.text(`  ${sk}: ${sv ?? ""}`);
+          }
+          doc.moveDown(0.3);
+        } else {
+          doc.text(`${key}: ${value}`);
+        }
+      }
+    }
+
+    doc.end();
+  });
+}
+
+// Agregar PDF al exportador (modificar la sección de formatos)

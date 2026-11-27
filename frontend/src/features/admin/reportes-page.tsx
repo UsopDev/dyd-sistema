@@ -14,10 +14,13 @@ import {
   ClipboardList,
   Clock,
   Download,
+  FileText,
   Percent,
+  Printer,
   Users,
   Wallet,
   Wrench,
+  X,
   type LucideIcon,
 } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
@@ -264,7 +267,8 @@ export function ReportesPage() {
   const [hasta, setHasta] = useState(() => hoyISO());
   const [exportando, setExportando] = useState<ReporteExportable | null>(null);
   const [tipoExport, setTipoExport] = useState<ReporteExportable>("resumen");
-  const [formatoExport, setFormatoExport] = useState<"csv" | "xlsx">("csv");
+  const [formatoExport, setFormatoExport] = useState<"csv" | "xlsx" | "pdf">("csv");
+  const [vistaPreviaAbierta, setVistaPreviaAbierta] = useState(false);
   const { toast } = useToast();
 
   const rangoInvalido = Boolean(desde && hasta && desde > hasta);
@@ -317,12 +321,18 @@ export function ReportesPage() {
     void clientes.refetch();
   };
 
+  const abrirVistaPrevia = async () => {
+    setVistaPreviaAbierta(true);
+  };
+
   const exportar = async () => {
     setExportando(tipoExport);
 
     try {
       if (formatoExport === "xlsx") {
         await dashboardApi.descargarXlsx(tipoExport, rango.desde, rango.hasta);
+      } else if (formatoExport === "pdf") {
+        await dashboardApi.descargarPdf(tipoExport, rango.desde, rango.hasta);
       } else {
         await dashboardApi.descargarCsv(tipoExport, rango.desde, rango.hasta);
       }
@@ -536,7 +546,7 @@ export function ReportesPage() {
               <Select
                 value={formatoExport}
                 onChange={(event) =>
-                  setFormatoExport(event.target.value as "csv" | "xlsx")
+                  setFormatoExport(event.target.value as "csv" | "xlsx" | "pdf")
                 }
                 aria-label="Formato de exportación"
                 className="w-full"
@@ -561,6 +571,15 @@ export function ReportesPage() {
                 <option value="xlsx">Excel (.xlsx)</option>
               </Select>
             </label>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => void abrirVistaPrevia()}
+              disabled={Boolean(vistaPreviaAbierta) || rangoInvalido}
+            >
+              <FileText className="h-4 w-4" />
+              Vista previa
+            </Button>
             <Button
               type="button"
               variant="secondary"
@@ -791,6 +810,31 @@ export function ReportesPage() {
           />
         </div>
       </GlassCard>
+      {vistaPreviaAbierta && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm" onClick={() => setVistaPreviaAbierta(false)}>
+          <div className="relative w-full max-w-4xl max-h-[90vh] bg-white rounded-2xl shadow-xl overflow-hidden" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between p-4 border-b border-slate-200">
+              <h2 className="text-lg font-bold text-slate-900">Vista previa de impresión</h2>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" onClick={() => window.print()}>
+                  <Printer className="h-4 w-4" />
+                  Imprimir
+                </Button>
+                <Button variant="ghost" size="icon" onClick={() => setVistaPreviaAbierta(false)} aria-label="Cerrar">
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            </div>
+            <div className="h-[70vh] overflow-auto p-4">
+              <iframe
+                src={"/api/reportes/exportar/" + tipoExport + "?fecha_desde=" + (rango.desde ?? "") + "&fecha_hasta=" + (rango.hasta ?? "") + "&format=pdf"}
+                className="w-full h-full border-0"
+                title="Vista previa del reporte"
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
