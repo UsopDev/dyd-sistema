@@ -15,14 +15,14 @@ import type { EstadoSolicitud } from "@prisma/client";
  * - CANCELADA es estado terminal (no sale)
  */
 
-export type EstadoSolicitud = 
-  | "RECIBIDA"
-  | "EN_DIAGNOSTICO"
-  | "COTIZADA"
-  | "ASIGNADA"
-  | "EN_PROCESO"
-  | "FINALIZADA"
-  | "CANCELADA";
+/**
+ * Tipo de estado de la solicitud.
+ * 
+ * FUENTE DE VERDAD: el enum `EstadoSolicitud` de Prisma (`prisma/schema.prisma`).
+ * Se re-exporta aquí para que la máquina de estados y las rutas compartan
+ * siempre el mismo tipo, evitando duplicación y desincronización.
+ */
+export type { EstadoSolicitud };
 
 /** Transiciones válidas: origen → [destinos permitidos] */
 export const TRANSICIONES_PERMITIDAS: Record<EstadoSolicitud, EstadoSolicitud[]> = {
